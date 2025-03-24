@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Paradise - VIP Slot Experience</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Стили для системы мультивалютности -->
+    <style>
+        /* Стили для отображения валюты */
+        .balance-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 280px;
+            max-width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .balance-wrapper:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .balance-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .balance-icon {
+            color: gold;
+            font-size: 20px;
+            margin-right: 5px;
+        }
+
+        .balance-label {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        #balance-amount {
+            color: #4ECDC4;
+            font-weight: 700;
+            margin: 0 3px;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .balance-currency {
+            font-size: 14px;
+            font-weight: 600;
+            color: #FFD700;
+            background: rgba(255, 215, 0, 0.1);
+            padding: 2px 5px;
+            border-radius: 4px;
+            margin-left: 3px;
+        }
+
+        .claim-btn {
+            background: linear-gradient(135deg, #4ECDC4, #2ECC71);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3);
+        }
+
+        .claim-btn:hover {
+            background: linear-gradient(135deg, #2ECC71, #27AE60);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(46, 204, 113, 0.4);
+        }
+
+        .claim-btn i {
+            font-size: 16px;
+        }
+
+        /* Стили для промокода */
+        .promo-wrapper {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .promo-wrapper:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .promo-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .promo-input {
+            flex: 1;
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .promo-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 215, 0, 0.5);
+            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
+        }
+
+        .promo-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .promo-btn {
+            background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
+        }
+
+        .promo-btn:hover {
+            background: linear-gradient(135deg, #FF8E53, #FF6B6B);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .promo-btn i {
+            font-size: 16px;
+        }
+
+        .promo-message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            display: none;
+            animation: fadeInUp 0.3s ease forwards;
+        }
+
+        .promo-message.success {
+            background-color: rgba(46, 204, 113, 0.15);
+            color: #2ecc71;
+            border-left: 4px solid #2ecc71;
+        }
+
+        .promo-message.error {
+            background-color: rgba(231, 76, 60, 0.15);
+            color: #e74c3c;
+            border-left: 4px solid #e74c3c;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Дополнительная анимация для значка валюты */
+        .balance-currency {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .balance-currency::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+        
+        /* Затемнение для тикера победителей */
+        .ticker-label {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 4px;
+            backdrop-filter: blur(3px);
+        }
+        
+        /* Полное затемнение фона тикера победителей */
+        .winner-ticker {
+            background: rgba(7, 2, 15, 0.95) !important;
+            border: 1px solid rgba(212, 175, 55, 0.4);
+        }
+        
+        /* Обновленные стили для контейнеров баланса и промокода */
+        .balance-wrapper, .promo-wrapper {
+            background: var(--card-bg);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            box-shadow: var(--box-shadow);
+        }
+        
+        /* Стиль для кнопки ЗАБРАТЬ ВЫИГРЫШ */
+        #claim-winnings-btn {
+            background: var(--gold-gradient);
+            color: var(--darker-bg);
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 30px;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+            transition: var(--transition-medium);
+            width: auto;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        #claim-winnings-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.5);
+        }
+        
+        /* Language selector panel styles */
+        .language-selector-panel {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(15, 5, 36, 0.95);
+            padding: 0;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.3);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Montserrat', sans-serif;
+            width: 250px;
+            overflow: hidden;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            backdrop-filter: blur(10px);
+            transform: translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .language-selector-panel.active {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .language-selector-header {
+            background: linear-gradient(135deg, #f7d358 0%, #b88a44 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .language-selector-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: shimmer 5s infinite;
+        }
+
+        .language-selector-title {
+            font-weight: 700;
+            font-size: 18px;
+            color: #070215;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .language-selector-icon {
+            font-size: 22px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .language-selector-content {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .language-selector-content label {
+            color: #d4af37;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .language-selector-dropdown {
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            background: rgba(7, 2, 15, 0.8);
+            color: white;
+            font-size: 14px;
+            font-family: 'Montserrat', sans-serif;
+            transition: all 0.3s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 16px;
+            padding-right: 35px;
+        }
+
+        .language-selector-dropdown:focus {
+            outline: none;
+            border-color: #d4af37;
+            box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+        }
+
+        .language-selector-dropdown option {
+            background: #0f0524;
+            color: white;
+        }
+
+        .language-selector-close-btn {
+            margin: 0 20px 20px;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #d81159, #8f2d56);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+        }
+
+        .language-selector-close-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(216, 17, 89, 0.3);
+        }
+
+        /* Trigger button */
+        .language-selector-trigger {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f7d358 0%, #b88a44 100%);
+            color: #070215;
+            font-size: 24px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+            cursor: pointer;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            overflow: hidden;
+        }
+
+        .language-selector-trigger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(212, 175, 55, 0.5);
+        }
+
+        .language-selector-trigger::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 60%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1;
+        }
+
+        .language-selector-trigger:hover::after {
+            opacity: 1;
+            animation: btnGlow 2s infinite;
+        }
+        
+        /* Beautiful language icon */
+        .language-icon {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+        
+        .language-icon-globe {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid #070215;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.3));
+            box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .language-icon-globe::before,
+        .language-icon-globe::after {
+            content: '';
+            position: absolute;
+            background: #070215;
+            z-index: 3;
+        }
+        
+        .language-icon-globe::before {
+            /* Equator line */
+            width: 22px;
+            height: 2px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .language-icon-globe::after {
+            /* Vertical line */
+            width: 2px;
+            height: 22px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .language-icon-text {
+            position: absolute;
+            font-size: 10px;
+            font-weight: bold;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #070215;
+            z-index: 4;
+            text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+        }
+        
+        @keyframes btnGlow {
+            0% {
+                transform: scale(0.5);
+                opacity: 0.1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+            100% {
+                transform: scale(1.2);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Preloader -->
+    <div id="preloader">
+        <div class="loader-container">
+            <div class="spinner"></div>
+            <p class="loading-text" data-locale-key="loading">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <h1>Fruit <span>Paradise</span></h1>
+                <div class="logo-shine"></div>
+            </div>
+            <nav>
+                <div class="burger-menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <ul class="nav-menu">
+                    <li><a href="#home" data-locale-key="menu_home">Home</a></li>
+                    <li><a href="#game" data-locale-key="menu_slots">Slots</a></li>
+                    <li><a href="#features" data-locale-key="menu_info">Info</a></li>
+                </ul>
+            </nav>
+            <button class="play-now-button" data-locale-key="play">
+                <span class="btn-text">PLAY NOW</span>
+                <span class="btn-glow"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section with Parallax -->
+        <section id="home" class="hero-section">
+            <div class="hero-overlay"></div>
+            <div class="hero-particles"></div>
+            
+            <div class="hero-content">
+                <div class="jackpot-announcement">
+                    <span class="jackpot-label">JACKPOT</span>
+                    <span class="jackpot-amount">€1,250,000</span>
+                </div>
+                
+                <h2 data-locale-key="hero_title">LUXURY FRUIT SLOTS</h2>
+                <p data-locale-key="hero_subtitle">Spin, Win & Experience Premium Gaming</p>
+                
+                <div class="hero-buttons">
+                    <button class="play-now-button primary-btn" data-locale-key="start_game">
+                        START PLAYING
+                        <i class="fas fa-play-circle"></i>
+                    </button>
+                    <button class="signup-bonus-btn primary-btn" >
+                        GET 500 FREE SPINS
+                        <i class="fas fa-gift"></i>
+                    </button>
+                </div>
+                
+                <!-- Removed payment methods block as requested -->
+            </div>
+            
+            <div class="floating-elements">
+                <img src="images/cherry.png" alt="" class="floating-item cherry">
+                <img src="images/diamond.png" alt="" class="floating-item diamond">
+                <img src="images/seven.png" alt="" class="floating-item seven">
+                <img src="images/coin.png" alt="" class="floating-item coin">
+            </div>
+        </section>
+        
+        <!-- Game Section -->
+        <section id="game" class="game-section">
+            <div class="section-decoration left"></div>
+            <div class="section-decoration right"></div>
+            
+            <div class="section-header">
+                <h2 data-locale-key="fruit_slots">PREMIUM FRUIT SLOTS</h2>
+                <div class="jackpot-ticker">
+                    JACKPOT: <span class="jackpot-value">€1,250,000</span>
+                </div>
+            </div>
+            
+            <div class="iframe-container">
+                <div class="iframe-decoration top-left"></div>
+                <div class="iframe-decoration top-right"></div>
+                <div class="iframe-decoration bottom-left"></div>
+                <div class="iframe-decoration bottom-right"></div>
+                
+                <div class="iframe-wrapper">
+                    <iframe id="game-frame" src="slot.html" frameborder="0" allowfullscreen></iframe>
+                </div>
+            </div>
+            
+            <div class="recent-winners">
+                <div class="winner-ticker">
+                    <div class="ticker-label">RECENT WINNERS:</div>
+                    <div class="ticker-content" id="random-winners">
+                        <!-- Winner items will be generated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Balance and Claim Winnings -->
+        <div id="balance-container" class="extension-container">
+            <div class="balance-wrapper">
+                <div class="balance-display">
+                    <i class="fas fa-coins balance-icon"></i>
+                    <span class="balance-label">Баланс:</span>
+                    <span id="balance-amount">111.24</span>
+                    <span class="balance-currency">USD</span>
+                </div>
+                <button id="claim-winnings-btn" class="claim-btn">
+                    <i class="fas fa-money-bill-wave"></i>
+                    ЗАБРАТЬ ВЫИГРЫШ
+                </button>
+            </div>
+        </div>
+        
+        <!-- Promo Code Input -->
+        <div id="promo-container" class="extension-container">
+            <div class="promo-wrapper">
+                <div class="promo-input-group">
+                    <input type="text" id="promo-code-input" class="promo-input" placeholder="Введите промокод">
+                    <button id="activate-promo-btn" class="promo-btn">
+                        <i class="fas fa-gift"></i>
+                        Активировать
+                    </button>
+                </div>
+                <div id="promo-message" class="promo-message"></div>
+            </div>
+        </div>
+        
+<!-- Win Modal -->
+<div id="win-modal" class="win-modal">
+    <div class="win-modal-content">
+        <div class="win-modal-header">
+            <div class="win-modal-title">ПОЗДРАВЛЯЕМ!</div>
+            <div class="win-confetti"></div>
+        </div>
+        <div class="win-modal-body">
+            <div class="win-amount-container">
+                <div class="win-amount-label">Ваш выигрыш:</div>
+                <div class="win-amount">
+                    <span id="win-modal-amount">0</span>
+                    <span id="win-modal-currency">EUR</span>
+                </div>
+            </div>
+            <p class="win-message">Вы можете забрать свой приз, нажав на кнопку ниже</p>
+            <button id="win-modal-claim-btn" class="win-claim-btn">
+                <i class="fas fa-money-bill-wave"></i>
+                ЗАБРАТЬ ВЫИГРЫШ
+            </button>
+        </div>
+        <button id="win-modal-close-btn" class="win-modal-close-btn">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</div>
+        
+        <!-- Features Section -->
+        <section id="features" class="features-section">
+            <div class="gold-sparkles"></div>
+            
+            <div class="section-header">
+                <h2 data-locale-key="game_features">VIP GAME FEATURES</h2>
+                <p class="section-subtitle">Enjoy premium gaming experience with top-notch features</p>
+            </div>
+            
+            <div class="features-container">
+                <div class="feature-box">
+                    <div class="feature-icon">
+                        <i class="fas fa-gem"></i>
+                    </div>
+                    <h3 data-locale-key="feature1_title">Premium Symbols</h3>
+                    <p data-locale-key="feature1_desc">High-value fruit symbols with massive payouts</p>
+                </div>
+                
+                <div class="feature-box">
+                    <div class="feature-icon">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <h3 data-locale-key="feature2_title">Mega Jackpots</h3>
+                    <p data-locale-key="feature2_desc">Progressive jackpots that grow with every spin</p>
+                </div>
+                
+                <div class="feature-box">
+                    <div class="feature-icon">
+                        <i class="fas fa-gift"></i>
+                    </div>
+                    <h3 data-locale-key="feature3_title">Bonus Rounds</h3>
+                    <p data-locale-key="feature3_desc">Exciting bonus rounds with multipliers</p>
+                </div>
+                
+                <div class="feature-box">
+                    <div class="feature-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h3 data-locale-key="feature4_title">Mobile Ready</h3>
+                    <p data-locale-key="feature4_desc">Perfect gaming experience on any device</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Testimonials Section -->
+        <section class="testimonials-section">
+            <div class="section-header">
+                <h2>PLAYER TESTIMONIALS</h2>
+            </div>
+            
+            <div class="testimonials-container">
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"Won over €500 on my first day! The best fruit slot game I've ever played!"</p>
+                    <div class="testimonial-author">- Michael R.</div>
+                </div>
+                
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <p class="testimonial-text">"The graphics are amazing and the bonuses keep coming! Truly a premium experience."</p>
+                    <div class="testimonial-author">- Anna S.</div>
+                </div>
+                
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star-half-alt"></i>
+                    </div>
+                    <p class="testimonial-text">"The free spins bonus got me a huge win! Customer support is excellent too."</p>
+                    <div class="testimonial-author">- Robert K.</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-top">
+            <div class="footer-container">
+                <div class="footer-logo">
+                    <h2>Fruit <span>Paradise</span></h2>
+                </div>
+                
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h3>Games</h3>
+                        <ul>
+                            <li><a href="#">Fruit Slots</a></li>
+                            <li><a href="#">Jackpot Games</a></li>
+                            <li><a href="#">Live Casino</a></li>
+                            <li><a href="#">Table Games</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-column">
+                        <h3>Information</h3>
+                        <ul>
+                            <li><a href="#">About Us</a></li>
+                            <li><a href="#">Terms & Conditions</a></li>
+                            <li><a href="#">Privacy Policy</a></li>
+                            <li><a href="#">Responsible Gaming</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-column">
+                        <h3>Support</h3>
+                        <ul>
+                            <li><a href="#">Help Center</a></li>
+                            <li><a href="#">Payment Methods</a></li>
+                            <li><a href="#">Contact Us</a></li>
+                            <li><a href="#">FAQ</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Removed social media section as requested -->
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <div class="footer-container">
+                <div class="footer-info">
+                    <p>&copy; 2025 Fruit Paradise. <span data-locale-key="rights_reserved">All rights reserved.</span></p>
+                    <p data-locale-key="age_restriction">The game is intended for people over 18 years old. Play responsibly.</p>
+                </div>
+                
+                <div class="footer-payments">
+                    <div class="payment-icons">
+                        <i class="fab fa-cc-visa"></i>
+                        <i class="fab fa-cc-mastercard"></i>
+                        <i class="fab fa-cc-paypal"></i>
+                        <i class="fab fa-bitcoin"></i>
+                        <i class="fab fa-cc-apple-pay"></i>
+                        <i class="fab fa-cc-amex"></i>
+                    </div>
+                </div>
+                
+                <div class="footer-security">
+                    <div class="security-badges">
+                        <span class="security-badge"><i class="fas fa-lock"></i> SSL Secure</span>
+                        <span class="security-badge"><i class="fas fa-shield-alt"></i> Licensed</span>
+                        <span class="security-badge"><i class="fas fa-18"></i> 18+</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Language Selector Panel -->
+    <div id="temp-language-selector" class="language-selector-panel">
+        <div class="language-selector-header">
+            <div class="language-selector-title">Select Language</div>
+            <div class="language-selector-icon">🌍</div>
+        </div>
+        
+        <div class="language-selector-content">
+            <label for="country-select">Choose Country:</label>
+            <select id="country-select" class="language-selector-dropdown">
+                <option value="US">US (EN, $)</option>
+                <option value="CA">CA (EN, C$)</option>
+                <option value="AU">AU (EN, A$)</option>
+                <option value="DE">DE (DE, €)</option>
+                <option value="FR">FR (FR, €)</option>
+                <option value="GB">GB (EN, £)</option>
+                <option value="AE">AE (AR, AED)</option>
+            </select>
+        </div>
+        
+        <button id="close-language-selector" class="language-selector-close-btn">
+            Close
+        </button>
+    </div>
+    
+    <!-- Language Selector Button with Custom Icon -->
+    <button id="toggle-language-selector" class="language-selector-trigger" title="Change Language">
+        <div class="language-icon">
+            <div class="language-icon-globe"></div>
+            <div class="language-icon-text">EN</div>
+        </div>
+    </button>
+
+    <!-- Основные скрипты -->
+    <script src="js/script.js"></script>
+    
+    <!-- Скрипты для мультивалютности -->
+    <script src="js/currency-handler.js"></script>
+    <script src="js/promo-system.js"></script>
+    
+    <!-- Script for random winners ticker -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Arrays for generating random winner data
+            const firstNames = ['Alex', 'Maria', 'John', 'Emma', 'David', 'Sophia', 'Michael', 'Olivia', 'Daniel', 'Anna', 
+                               'Jacob', 'Lisa', 'Robert', 'Kate', 'Thomas', 'Natalie', 'William', 'Elena', 'James', 'Victoria',
+                               'Max', 'Julia', 'Steven', 'Sarah', 'Peter', 'Nina', 'Mark', 'Laura', 'Andrew', 'Tina'];
+                               
+            const lastNames = ['S.', 'M.', 'D.', 'K.', 'T.', 'R.', 'B.', 'L.', 'W.', 'G.', 
+                              'P.', 'H.', 'C.', 'F.', 'N.', 'J.', 'A.', 'E.', 'V.', 'Z.',
+                              'O.', 'I.', 'Q.', 'Y.', 'U.', 'X.'];
+                              
+            const prizes = [
+                { type: 'money', value: '€520' },
+                { type: 'money', value: '€750' },
+                { type: 'money', value: '€1,250' },
+                { type: 'money', value: '€890' },
+                { type: 'money', value: '€1,670' },
+                { type: 'money', value: '€340' },
+                { type: 'money', value: '€2,100' },
+                { type: 'money', value: '€990' },
+                { type: 'money', value: '€3,750' },
+                { type: 'money', value: '€1,800' },
+                { type: 'money', value: '€2,500' },
+                { type: 'money', value: '€475' },
+                { type: 'bonus', value: '100 Free Spins' },
+                { type: 'bonus', value: '50 Free Spins' },
+                { type: 'bonus', value: '200 Free Spins' },
+                { type: 'bonus', value: 'Jackpot €10,000' },
+                { type: 'bonus', value: 'Mega Win €5,000' },
+                { type: 'bonus', value: 'Super Win €3,000' }
+            ];
+            
+            // Function to generate a random winner
+            function generateRandomWinner() {
+                const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+                const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+                const prize = prizes[Math.floor(Math.random() * prizes.length)];
+                
+                return {
+                    name: `${firstName} ${lastName}`,
+                    prize: prize.value
+                };
+            }
+            
+            // Generate multiple random winners
+            function generateWinnerItems(count = 15) {
+                const winners = [];
+                for (let i = 0; i < count; i++) {
+                    winners.push(generateRandomWinner());
+                }
+                return winners;
+            }
+            
+            // Create HTML for winners ticker
+            function createWinnerTicker(winners) {
+                const tickerContent = document.getElementById('random-winners');
+                if (!tickerContent) return;
+                
+                tickerContent.innerHTML = '';
+                
+                winners.forEach(winner => {
+                    const tickerItem = document.createElement('div');
+                    tickerItem.className = 'ticker-item';
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'winner-name';
+                    nameSpan.textContent = winner.name;
+                    
+                    const prizeSpan = document.createElement('span');
+                    prizeSpan.className = 'winner-amount';
+                    prizeSpan.textContent = winner.prize;
+                    
+                    tickerItem.appendChild(nameSpan);
+                    tickerItem.appendChild(prizeSpan);
+                    
+                    tickerContent.appendChild(tickerItem);
+                });
+            }
+            
+            // Initial setup
+            const initialWinners = generateWinnerItems(20);
+            createWinnerTicker(initialWinners);
+            
+            // Update winners every 30 seconds with new data
+            setInterval(() => {
+                const newWinners = generateWinnerItems(20);
+                createWinnerTicker(newWinners);
+            }, 30000);
+            
+            // Apply styles to make winner ticker opaque
+            const winnerTicker = document.querySelector('.winner-ticker');
+            if (winnerTicker) {
+                winnerTicker.style.backgroundColor = 'rgba(7, 2, 15, 0.95)';
+                winnerTicker.style.borderColor = 'rgba(212, 175, 55, 0.4)';
+            }
+        });
+    </script>
+    
+    <!-- Language selector script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleButton = document.getElementById('toggle-language-selector');
+            const languagePanel = document.getElementById('temp-language-selector');
+            const closeButton = document.getElementById('close-language-selector');
+            const countrySelect = document.getElementById('country-select');
+            const languageText = document.querySelector('.language-icon-text');
+            
+            // Map country codes to language codes
+            const countryToLanguage = {
+                'US': 'EN',
+                'CA': 'EN',
+                'AU': 'EN',
+                'DE': 'DE',
+                'FR': 'FR',
+                'GB': 'EN',
+                'AE': 'AR'
+            };
+            
+            // Initially hide the panel
+            if (languagePanel) {
+                languagePanel.classList.remove('active');
+            }
+            
+            // Toggle panel on button click
+            if (toggleButton) {
+                toggleButton.addEventListener('click', function() {
+                    languagePanel.classList.toggle('active');
+                });
+            }
+            
+            // Close panel on close button click
+            if (closeButton) {
+                closeButton.addEventListener('click', function() {
+                    languagePanel.classList.remove('active');
+                });
+            }
+            
+            // Update language code when country changes
+            if (countrySelect) {
+                countrySelect.addEventListener('change', function() {
+                    const selectedCountry = this.value;
+                    const languageCode = countryToLanguage[selectedCountry] || 'EN';
+                    
+                    // Update the language code in the button
+                    if (languageText) {
+                        languageText.textContent = languageCode;
+                    }
+                    
+                    // Save selection to localStorage
+                    localStorage.setItem('selectedCountry', selectedCountry);
+                    localStorage.setItem('selectedLanguage', languageCode);
+                    
+                    // Close the panel
+                    languagePanel.classList.remove('active');
+                });
+            }
+            
+            // Load saved language settings
+            const savedCountry = localStorage.getItem('selectedCountry');
+            if (savedCountry && countrySelect) {
+                countrySelect.value = savedCountry;
+                
+                // Update language code in button
+                const languageCode = countryToLanguage[savedCountry] || 'EN';
+                if (languageText) {
+                    languageText.textContent = languageCode;
+                }
+            }
+            
+            // Close panel when clicking outside
+            document.addEventListener('click', function(event) {
+                if (languagePanel && !languagePanel.contains(event.target) && event.target !== toggleButton && !toggleButton.contains(event.target)) {
+                    languagePanel.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Fruit Paradise Slot Machine</title>
+        <link rel="stylesheet" href="css/reset.css" type="text/css">
+        <link rel="stylesheet" href="css/main.css" type="text/css">
+        <link rel="stylesheet" href="css/orientation_utils.css" type="text/css">
+        <link rel="stylesheet" href="css/ios_fullscreen.css" type="text/css">
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+        <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui" />
+	<meta name="msapplication-tap-highlight" content="no"/>
+
+        <script type="text/javascript" src="js/jquery-3.2.1.min.js"></script>
+        <script type="text/javascript" src="js/createjs-2015.11.26.min.js"></script>
+        <script type="text/javascript" src="js/howler.min.js"></script>
+        <script type="text/javascript" src="js/screenfull.js"></script>
+        <script type="text/javascript" src="js/platform.js"></script>
+        <script type="text/javascript" src="js/ios_fullscreen.js"></script>
+        <script type="text/javascript" src="js/ctl_utils.js"></script>
+        <script type="text/javascript" src="js/sprite_lib.js"></script>
+        <script type="text/javascript" src="js/settings.js"></script>
+        <script type="text/javascript" src="js/CSlotSettings.js"></script>
+        <script type="text/javascript" src="js/CLang.js"></script>
+        <script type="text/javascript" src="js/CPreloader.js"></script>
+        <script type="text/javascript" src="js/CMain.js"></script>
+        <script type="text/javascript" src="js/CTextButton.js"></script>
+        <script type="text/javascript" src="js/CGfxButton.js"></script>
+        <script type="text/javascript" src="js/CToggle.js"></script>
+        <script type="text/javascript" src="js/CBetBut.js"></script>
+        <script type="text/javascript" src="js/CMenu.js"></script>
+        <script type="text/javascript" src="js/CGame.js"></script>
+        <script type="text/javascript" src="js/CReelColumn.js"></script>
+        <script type="text/javascript" src="js/CInterface.js"></script>
+        <script type="text/javascript" src="js/CPayTablePanel.js"></script>
+        <script type="text/javascript" src="js/CStaticSymbolCell.js"></script>
+        <script type="text/javascript" src="js/CTweenController.js"></script>
+        <script type="text/javascript" src="js/CCreditsPanel.js"></script>
+        
+    </head>
+    <body ondragstart="return false;" ondrop="return false;" >
+	<div style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%"></div>
+          <script>
+            $(document).ready(function(){
+                     // Получение начального баланса из localStorage (до создания игры)
+                     var initialBalance = 100; // Значение по умолчанию
+                     try {
+                         var storedBalance = parseFloat(localStorage.getItem('fruitParadiseBalance'));
+                         if (!isNaN(storedBalance)) {
+                             initialBalance = storedBalance;
+                             console.log("[SLOT] Loading initial balance from localStorage:", initialBalance);
+                         }
+                     } catch (e) {
+                         console.error('Error reading balance from localStorage:', e);
+                     }
+
+                     // Создаем экземпляр игры с начальным балансом из localStorage
+                     var oMain = new CMain({
+                                    win_occurrence:100,        //WIN PERCENTAGE.SET A VALUE FROM 0 TO 100.
+                                    slot_cash: 500,          //THIS IS THE CURRENT SLOT CASH AMOUNT. THE GAME CHECKS IF THERE IS AVAILABLE CASH FOR WINNINGS.
+                                    min_reel_loop:2,          //NUMBER OF REEL LOOPS BEFORE SLOT STOPS  
+                                    reel_delay: 6,            //NUMBER OF FRAMES TO DELAY THE REELS THAT START AFTER THE FIRST ONE
+                                    time_show_win:2000,       //DURATION IN MILLISECONDS OF THE WINNING COMBO SHOWING
+                                    time_show_all_wins: 2000, //DURATION IN MILLISECONDS OF ALL WINNING COMBO
+                                    money: initialBalance,    //STARING CREDIT FOR THE USER - важно: теперь мы берем значение из localStorage
+									
+                                    /***********PAYTABLE********************/
+                                    //EACH SYMBOL PAYTABLE HAS 5 VALUES THAT INDICATES THE MULTIPLIER FOR X1,X2,X3,X4 OR X5 COMBOS
+                                    paytable_symbol_1: [0,0,100,150,200], //PAYTABLE FOR SYMBOL 1
+                                    paytable_symbol_2: [0,0,50,100,150],  //PAYTABLE FOR SYMBOL 2
+                                    paytable_symbol_3: [0,10,25,50,100],  //PAYTABLE FOR SYMBOL 3
+                                    paytable_symbol_4: [0,10,25,50,100],  //PAYTABLE FOR SYMBOL 4
+                                    paytable_symbol_5: [0,5,15,25,50],    //PAYTABLE FOR SYMBOL 5
+                                    paytable_symbol_6: [0,2,10,20,35],    //PAYTABLE FOR SYMBOL 6
+                                    paytable_symbol_7: [0,1,5,10,15],     //PAYTABLE FOR SYMBOL 7
+                                    /*************************************/
+                                    fullscreen:true,           //SET THIS TO FALSE IF YOU DON'T WANT TO SHOW FULLSCREEN BUTTON
+                                    check_orientation:true,    //SET TO FALSE IF YOU DON'T WANT TO SHOW ORIENTATION ALERT ON MOBILE DEVICES
+                                    show_credits:true,         //ENABLE/DISABLE CREDITS BUTTON IN THE MAIN SCREEN
+                                    ad_show_counter:3         //NUMBER OF SPIN PLAYED BEFORE AD SHOWING
+                                    // 
+                                    //// THIS FEATURE  IS ACTIVATED ONLY WITH CTL ARCADE PLUGIN./////////////////////////// 
+                                    /////////////////// YOU CAN GET IT AT: ///////////////////////////////////////////////////////// 
+                                    // http://codecanyon.net/item/ctl-arcade-wordpress-plugin/13856421///////////
+
+                                });
+
+                    $(oMain).on("start_session", function (evt) {
+                        if(getParamValue('ctl-arcade') === "true"){
+                            parent.__ctlArcadeStartSession();
+                        }
+                        
+                        // Уведомляем родительское окно, что игра запущена и готова к синхронизации
+                        window.parent.postMessage({
+                            type: 'GAME_STARTED',
+                            ready: true
+                        }, '*');
+                    });
+
+                    $(oMain).on("end_session", function (evt) {
+                        if(getParamValue('ctl-arcade') === "true"){
+                            parent.__ctlArcadeEndSession();
+                        }
+                    });
+                    
+                    $(oMain).on("bet_placed", function (evt, oBetInfo) {
+                        var iBet = oBetInfo.bet;
+                        var iTotBet = oBetInfo.tot_bet;
+                        
+                        // Сохраняем текущий баланс в localStorage при каждой ставке
+                        if (window.s_oGame && window.s_oGame._iMoney !== undefined) {
+                            localStorage.setItem('fruitParadiseBalance', window.s_oGame._iMoney);
+                        }
+                    });
+                
+                    $(oMain).on("save_score", function (evt, iMoney) {
+                        if(getParamValue('ctl-arcade') === "true"){
+                            parent.__ctlArcadeSaveScore({score:iMoney});
+                        }
+                        
+                        // Сохраняем в localStorage и отправляем обновленный баланс в родительское окно
+                        localStorage.setItem('fruitParadiseBalance', iMoney);
+                        
+                        window.parent.postMessage({
+                            type: 'UPDATE_BALANCE',
+                            balance: iMoney
+                        }, '*');
+                    });
+                    
+                    $(oMain).on("show_preroll_ad", function (evt) {
+                        //...ADD YOUR CODE HERE EVENTUALLY
+                    });
+                    
+                    $(oMain).on("show_interlevel_ad", function (evt) {
+                        if(getParamValue('ctl-arcade') === "true"){
+                            parent.__ctlArcadeShowInterlevelAD();
+                        }
+                    });
+
+                    $(oMain).on("share_event", function(evt, iScore) {
+                           if(getParamValue('ctl-arcade') === "true"){
+                               parent.__ctlArcadeShareEvent({   
+                                                                img: TEXT_SHARE_IMAGE,
+                                                                title: TEXT_SHARE_TITLE,
+                                                                msg: TEXT_SHARE_MSG1 + iScore+ TEXT_SHARE_MSG2,
+                                                                msg_share: TEXT_SHARE_SHARE1 + iScore + TEXT_SHARE_SHARE1});
+                           }
+                    });
+                     
+                    if(isIOS()){
+                        setTimeout(function(){sizeHandler();},200);
+                    }else{
+                        sizeHandler();
+                    }
+           });
+          </script>
+        <div class="check-fonts">
+            <p class="check-font-1">test 1</p>
+        </div> 
+        
+        <canvas id="canvas" class='ani_hack' width="1500" height="640"> </canvas>
+        <div data-orientation="landscape" class="orientation-msg-container"><p class="orientation-msg-text">Please rotate your device</p></div>
+        <div id="block_game" style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%; display:none"></div>
+
+        <!-- Скрипт для синхронизации баланса между игрой и основным сайтом -->
+        <script type="text/javascript">
+            /**
+             * Скрипт для интеграции и синхронизации баланса между игрой и основным сайтом
+             */
+/**
+ * Скрипт для синхронизации игрового слота с основным сайтом
+ * Добавьте этот скрипт в конец файла slot.html перед закрывающим тегом </body>
+ */
+(function() {
+    let syncBalanceDelay = null;
+let lastSyncedBalance = null;
+
+// Функция для плавного и надежного обновления баланса
+function safeUpdateBalance(newBalance) {
+    // Предотвращаем частые обновления (debounce)
+    if (syncBalanceDelay) {
+        clearTimeout(syncBalanceDelay);
+    }
+    
+    // Не синхронизируем тот же самый баланс
+    if (lastSyncedBalance === newBalance) {
+        return;
+    }
+    
+    console.log('[SLOT] Scheduling balance update:', newBalance);
+    
+    // Задержка для объединения нескольких обновлений в одно
+    syncBalanceDelay = setTimeout(() => {
+        try {
+            // Сохраняем в localStorage в любом случае
+            localStorage.setItem('fruitParadiseBalance', newBalance);
+            
+            // Если игра инициализирована
+            if (window.s_oGame) {
+                window.s_oGame._iMoney = newBalance;
+                
+                // Обновляем интерфейс если возможно
+                if (window.s_oGame._oInterface && typeof window.s_oGame._oInterface.refreshMoney === 'function') {
+                    window.s_oGame._oInterface.refreshMoney(newBalance);
+                    console.log('[SLOT] Balance successfully updated to:', newBalance);
+                    lastSyncedBalance = newBalance;
+                }
+            } else {
+                console.warn('[SLOT] Game not loaded, saved balance for later:', newBalance);
+            }
+        } catch (e) {
+            console.error('[SLOT] Error during safe balance update:', e);
+        }
+        
+        syncBalanceDelay = null;
+    }, 50); // Короткая задержка для предотвращения проблем с производительностью
+}
+
+// Функция для проверки и применения баланса из localStorage
+function checkAndApplyStoredBalance() {
+    try {
+        const storedBalance = parseFloat(localStorage.getItem('fruitParadiseBalance'));
+        if (!isNaN(storedBalance) && window.s_oGame) {
+            // Проверяем, отличается ли баланс
+            if (window.s_oGame._iMoney !== storedBalance) {
+                console.log(`[SLOT] Applying stored balance: ${storedBalance} (current: ${window.s_oGame._iMoney})`);
+                window.s_oGame._iMoney = storedBalance;
+                
+                if (window.s_oGame._oInterface && typeof window.s_oGame._oInterface.refreshMoney === 'function') {
+                    window.s_oGame._oInterface.refreshMoney(storedBalance);
+                }
+                
+                // Сообщаем родительскому окну о применённом балансе
+                window.parent.postMessage({
+                    type: 'BALANCE_APPLIED',
+                    balance: storedBalance
+                }, '*');
+            }
+        }
+    } catch (e) {
+        console.error('[SLOT] Error checking stored balance:', e);
+    }
+}
+
+// Запускаем регулярную проверку и применение баланса из localStorage
+// Это поможет в случаях когда postMessage не работает
+setInterval(checkAndApplyStoredBalance, 2000);
+
+// Отслеживаем изменения в localStorage (если поддерживается)
+if (window.addEventListener) {
+    // Этот подход не сработает напрямую для изменений localStorage между фреймами,
+    // но добавим его для полноты решения
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'fruitParadiseBalance') {
+            const newBalance = parseFloat(e.newValue);
+            if (!isNaN(newBalance)) {
+                console.log('[SLOT] Balance changed in localStorage:', newBalance);
+                safeUpdateBalance(newBalance);
+            }
+        }
+    });
+}
+    // Слушатель для получения сообщений от родительского окна
+    window.addEventListener('message', receiveMessageFromParent, false);
+    
+    // Переменная для хранения последней отправленной суммы баланса
+    let lastSentBalance = 0;
+    
+    // Функция для получения сообщений от родительского окна
+    function receiveMessageFromParent(event) {
+        const data = event.data;
+        console.log('[SLOT] Received message from parent:', data);
+        
+        if (data.type === 'SET_BALANCE' && typeof data.balance === 'number') {
+            // Обновляем балансы в игре
+            if (window.s_oGame) {
+                try {
+                    // Напрямую устанавливаем баланс в игре
+                    window.s_oGame._iMoney = data.balance;
+                    
+                    // Обновляем интерфейс игры, если это возможно
+                    if (window.s_oGame._oInterface && typeof window.s_oGame._oInterface.refreshMoney === 'function') {
+                        window.s_oGame._oInterface.refreshMoney(data.balance);
+                        console.log('[SLOT] Balance updated in game:', data.balance);
+                    }
+                    
+                    // Обновляем значение также в локальном хранилище
+                    localStorage.setItem('fruitParadiseBalance', data.balance);
+                    
+                    // Запоминаем отправленную сумму, чтобы предотвратить циклические обновления
+                    lastSentBalance = data.balance;
+                } catch (e) {
+                    console.error('Error updating game balance:', e);
+                }
+            } else {
+                // Если игра ещё не загружена, сохраняем баланс для применения позже
+                localStorage.setItem('fruitParadiseBalance', data.balance);
+                console.log('[SLOT] Game not loaded yet, saved balance to localStorage:', data.balance);
+            }
+        }
+    }
+    
+    // Функция для отправки сообщения в родительское окно
+    function sendMessageToParent(message) {
+        // Проверяем, что мы находимся в iframe
+        if (window.parent !== window) {
+            window.parent.postMessage(message, '*');
+        }
+    }
+    
+    // Периодическая синхронизация баланса с родительским окном
+    function syncBalance() {
+        if (window.s_oGame && typeof window.s_oGame._iMoney === 'number') {
+            const currentBalance = window.s_oGame._iMoney;
+            
+            // Проверяем, изменился ли баланс с момента последней отправки
+            if (currentBalance !== lastSentBalance) {
+                console.log(`[SLOT] Syncing balance: ${currentBalance} (last sent: ${lastSentBalance})`);
+                
+                // Сохраняем в localStorage
+                localStorage.setItem('fruitParadiseBalance', currentBalance);
+                
+                // Отправляем в родительское окно
+                sendMessageToParent({
+                    type: 'UPDATE_BALANCE',
+                    balance: currentBalance
+                });
+                
+                // Обновляем последнюю отправленную сумму
+                lastSentBalance = currentBalance;
+            }
+        }
+        
+        // Запускаем следующую проверку через 1 секунду
+        setTimeout(syncBalance, 1000);
+    }
+    
+    // Переопределение функций обновления денег в игре 
+    function overrideMoneyUpdateFunctions() { 
+        // Проверяем, загружена ли игра и есть ли доступ к её интерфейсу 
+        if (!window.s_oGame || !window.s_oGame._oInterface) { 
+            // Если игра ещё не загружена, пробуем через секунду 
+            setTimeout(overrideMoneyUpdateFunctions, 1000); 
+            return; 
+        } 
+        
+        try { 
+            console.log('[SLOT] Overriding money update functions...'); 
+            
+            // Сохраняем оригинальную функцию обновления денег 
+            const originalRefreshMoney = window.s_oGame._oInterface.refreshMoney; 
+            
+            // Переопределяем функцию обновления денег 
+            window.s_oGame._oInterface.refreshMoney = function(iMoney) { 
+                // Вызываем оригинальную функцию 
+                originalRefreshMoney.call(this, iMoney); 
+                
+                // Отправляем обновленный баланс в родительское окно, но только если он изменился 
+                if (iMoney !== lastSentBalance) { 
+                    lastSentBalance = iMoney; 
+                    
+                    // Сохраняем значение в localStorage 
+                    localStorage.setItem('fruitParadiseBalance', iMoney); 
+                    
+                    // Отправляем сообщение в родительское окно 
+                    sendMessageToParent({ 
+                        type: 'UPDATE_BALANCE', 
+                        balance: iMoney 
+                    }); 
+                    
+                    console.log('[SLOT] Money refreshed:', iMoney);
+                }
+            };
+            
+            // Переопределяем функцию обработки выигрыша
+            if (window.s_oGame._endReelAnimation) {
+                const originalEndReelAnimation = window.s_oGame._endReelAnimation;
+                
+                window.s_oGame._endReelAnimation = function() {
+                    // Вызываем оригинальную функцию
+                    originalEndReelAnimation.call(this);
+                    
+                    // Если был выигрыш, отправляем обновленный баланс
+                    if (this._iTotWin > 0) {
+                        setTimeout(() => {
+                            const currentBalance = this._iMoney;
+                            
+                            // Проверяем, изменился ли баланс с момента последней отправки
+                            if (currentBalance !== lastSentBalance) {
+                                localStorage.setItem('fruitParadiseBalance', currentBalance);
+                                
+                                sendMessageToParent({
+                                    type: 'UPDATE_BALANCE',
+                                    balance: currentBalance
+                                });
+                                
+                                lastSentBalance = currentBalance;
+                                console.log('[SLOT] Win processed, new balance:', currentBalance);
+                            }
+                        }, 500);
+                    }
+                };
+            }
+            
+            // Переопределяем функцию вращения барабанов
+            if (window.s_oGame && window.s_oGame.onSpin) {
+    const originalOnSpin = window.s_oGame.onSpin;
+    
+    window.s_oGame.onSpin = function() {
+        // Call original function
+        originalOnSpin.call(this);
+        
+        // Send spin event to parent
+        setTimeout(() => {
+            window.parent.postMessage({
+                type: 'UPDATE_BALANCE',
+                balance: this._iMoney,
+                spinMade: true  // Add this flag to indicate a spin was made
+            }, '*');
+            
+            console.log('[SLOT] Spin tracked and reported to parent');
+        }, 200);
+    };
+    
+    console.log('[SLOT] Spin tracking initialized');
+}
+            
+            // Устанавливаем начальный баланс из localStorage при загрузке игры
+            const storedBalance = parseFloat(localStorage.getItem('fruitParadiseBalance'));
+            if (!isNaN(storedBalance) && storedBalance !== window.s_oGame._iMoney) {
+                console.log(`[SLOT] Applying stored balance: ${storedBalance} (current: ${window.s_oGame._iMoney})`);
+                window.s_oGame._iMoney = storedBalance;
+                window.s_oGame._oInterface.refreshMoney(storedBalance);
+                lastSentBalance = storedBalance;
+            }
+            
+            // Отправляем сообщение о текущем балансе в родительское окно
+            sendMessageToParent({
+                type: 'UPDATE_BALANCE',
+                balance: window.s_oGame._iMoney
+            });
+            lastSentBalance = window.s_oGame._iMoney;
+            
+            console.log('[SLOT] Game sync successfully initialized');
+            
+        } catch (e) {
+            console.error('Failed to override money functions:', e);
+            // Пробуем ещё раз через некоторое время
+            setTimeout(overrideMoneyUpdateFunctions, 2000);
+        }
+    }
+    
+    // Функция для инициализации всей системы синхронизации
+    function initGameSync() {
+        // Проверяем наличие игры в window
+        if (typeof window.s_oMain === 'undefined') {
+            // Пробуем ещё раз через некоторое время
+            setTimeout(initGameSync, 500);
+            return;
+        }
+        
+        // Начальное оповещение родительского окна о готовности игры
+        sendMessageToParent({
+            type: 'GAME_STARTED',
+            ready: true
+        });
+        
+        // Отслеживаем событие начала игры
+        $(window.s_oMain).on("start_session", function() {
+            overrideMoneyUpdateFunctions();
+        });
+        
+        // Запускаем периодическую синхронизацию баланса
+        syncBalance();
+        
+        // Также пробуем переопределить функции сразу, на случай если событие уже сработало
+        setTimeout(overrideMoneyUpdateFunctions, 1000);
+        
+        console.log('[SLOT] Game sync initialization complete');
+    }
+    
+    // Запускаем инициализацию при загрузке DOM
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('[SLOT] DOM loaded, initializing game sync');
+        initGameSync();
+    });
+    
+    // Также запускаем инициализацию при полной загрузке страницы
+    window.addEventListener('load', function() {
+        console.log('[SLOT] Page loaded, ensuring game sync');
+        initGameSync();
+    });
+    
+    // Если DOM уже загружен, запускаем инициализацию сразу
+    if (document.readyState === 'interactive' || document.readyState === 'complete') {
+        console.log('[SLOT] DOM already loaded, initializing game sync');
+        initGameSync();
+    }
+})();
+        </script>
+    </body>
+</html>
