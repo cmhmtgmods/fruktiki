@@ -1,449 +1,713 @@
 /**
- * Fixes for Win Modal - To be added to the existing promo-system.js file
- * 
- * This script fixes the win modal functionality without breaking the existing promo code system.
- * It should be added to the bottom of the document.addEventListener('DOMContentLoaded') function
- * in the promo-system.js file, just before the closing bracket.
+ * Combined Modal and Promo Code System for Fruit Paradise Slot
+ * Handles win modals, promo codes, and balance management with proper synchronization
  */
 
-// Update these constants at the top of the file (inside the DOMContentLoaded callback)
-const MIN_BALANCE_FOR_MODAL = 100; // Minimum balance in user currency to show modal
-const MIN_SPINS_BEFORE_MODAL = 3;  // Minimum spins after large promo to show modal
-let spinCounter = 0;                // Track number of spins
-
-// Replace the existing checkModalConditions function with this improved version
-function checkModalConditions(balanceEUR) {
-    console.log('[PROMO] Checking modal conditions');
+document.addEventListener('DOMContentLoaded', function() {
+    // Constants
+    const STORAGE_BALANCE_KEY = 'fruitParadiseBalance';
+    const STORAGE_INIT_BALANCE_KEY = 'fruitParadiseInitBalance';
+    const STORAGE_PROMOS_KEY = 'fruitParadisePromoCodes';
+    const STORAGE_USED_PROMOS_KEY = 'fruitParadiseUsedCodes';
+    const STORAGE_THRESHOLDS_KEY = 'fruitParadiseThresholds';
+    const STORAGE_USER_PROMOS_KEY = 'fruitParadiseUserUsedCodes';
+    const STORAGE_USER_ID_KEY = 'fruitParadiseUserId';
     
-    // Convert to user currency
-    const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
+    // Win modal thresholds
+    const THRESHOLD_BALANCE = 100; // Balance threshold in user currency
+    const MIN_SPINS_AFTER_PROMO = 3; // Minimum spins required after promo activation
     
-    console.log(`[PROMO] Balance: ${balanceInUserCurrency} ${userCurrency}, Threshold: ${MIN_BALANCE_FOR_MODAL}`);
-    console.log(`[PROMO] Spins: ${spinCounter}`);
+    // State variables
+    let spinCounter = 0;
+    let modalShown = false;
+    let lastKnownBalance = 0;
+    let userCurrency = 'USD'; // Default, will be updated
+    let currencySymbol = '$'; // Default, will be updated
+    let exchangeRate = 1; // Default, will be updated
     
-    // Check if balance is below threshold - don't show modal in this case
-    if (balanceInUserCurrency < MIN_BALANCE_FOR_MODAL) {
-        // If modal is open but balance dropped, close it
-        if (winModal && winModal.style.display === 'flex') {
-            console.log('[PROMO] Balance below threshold, closing modal');
-            closeWinModal();
+    // DOM elements
+    const winModal = document.getElementById('win-modal');
+    const winModalAmount = document.getElementById('win-modal-amount');
+    const winModalCurrency = document.getElementById('win-modal-currency');
+    const winModalClaimBtn = document.getElementById('win-modal-claim-btn');
+    const winModalCloseBtn = document.getElementById('win-modal-close-btn');
+    const balanceElement = document.getElementById('balance-amount');
+    const balanceCurrencyElement = document.querySelector('.balance-currency');
+    const claimWinningsBtn = document.getElementById('claim-winnings-btn');
+    const gameFrame = document.getElementById('game-frame');
+    const promoCodeInput = document.getElementById('promo-code-input');
+    const activatePromoBtn = document.getElementById('activate-promo-btn');
+    const promoMessage = document.getElementById('promo-message');
+    
+    // Initialize the system
+    initSystem();
+    
+    /**
+     * Initialize the entire system
+     */
+    function initSystem() {
+        console.log('[SYSTEM] Initializing combined system');
+        
+        // Initialize balance and currency
+        initBalanceAndCurrency();
+        
+        // Initialize win modal
+        initWinModal();
+        
+        // Setup promo code functionality
+        setupPromoSystem();
+        
+        // Setup event listeners
+        setupEventListeners();
+        
+        // Check initial balance for modal display
+        const initialBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
+        checkModalConditions(initialBalanceEUR);
+        
+        console.log('[SYSTEM] System initialization complete');
+    }
+    
+    /**
+     * Initialize win modal and its buttons
+     */
+    function initWinModal() {
+        if (!winModal) {
+            console.error('[SYSTEM] Win modal not found in DOM');
+            return;
         }
-        return;
+        
+        // Close button event handler
+        if (winModalCloseBtn) {
+            winModalCloseBtn.addEventListener('click', closeWinModal);
+        }
+        
+        // Claim button event handler
+        if (winModalClaimBtn) {
+            winModalClaimBtn.addEventListener('click', handleClaimWinnings);
+        }
+        
+        // Close modal on click outside content
+        winModal.addEventListener('click', function(e) {
+            if (e.target === winModal) {
+                closeWinModal();
+            }
+        });
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && winModal.style.display === 'flex') {
+                closeWinModal();
+            }
+        });
+        
+        console.log('[SYSTEM] Win modal initialized');
     }
     
-    // Check if this was triggered by promo code
-    const promoActivated = localStorage.getItem('fruitParadisePromoActivated');
-    const promoTimestamp = parseInt(localStorage.getItem('fruitParadisePromoTimestamp') || '0');
-    const currentTime = new Date().getTime();
-    const isRecentPromo = (currentTime - promoTimestamp) < 60000; // Within the last minute
-    
-    // If balance came from recent promo and less than MIN_SPINS_BEFORE_MODAL spins made, don't show modal yet
-    if (promoActivated === 'true' && isRecentPromo && spinCounter < MIN_SPINS_BEFORE_MODAL) {
-        console.log(`[PROMO] Recent promo balance, waiting for ${MIN_SPINS_BEFORE_MODAL} spins (current: ${spinCounter})`);
-        return;
-    }
-    
-    // Show modal if all conditions are met
-    console.log('[PROMO] All conditions met, showing win modal');
-    showWinModal(balanceEUR);
-}
-
-// Replace the existing showWinModal function with this improved version
-function showWinModal(balanceEUR) {
-    if (!winModal) {
-        console.warn('[PROMO] Win modal element not found');
-        return;
-    }
-    
-    // Convert to user currency
-    const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
-    
-    // Set amount in modal
-    if (winModalAmount) {
-        winModalAmount.textContent = formatCurrency(balanceInUserCurrency, false);
-    }
-    
-    // Set currency
-    if (winModalCurrency) {
-        winModalCurrency.textContent = userCurrency;
-    }
-    
-    // Show modal
-    winModal.style.display = 'flex';
-    
-    // Create confetti animation
-    createConfetti();
-    
-    console.log('[PROMO] Win modal displayed with balance:', balanceInUserCurrency, userCurrency);
-}
-
-// Enhanced receiveMessageFromGame function to track spins
-function receiveMessageFromGame(event) {
-    // Check source (not strictly)
-    const data = event.data;
-    
-    if (typeof data !== 'object' || !data.type) {
-        return;
-    }
-    
-    console.log('[PROMO] Received message from game:', data);
-    
-    if (data.type === 'UPDATE_BALANCE') {
-        // Get new balance
-        const newBalance = parseFloat(data.balance) || 0;
-        localStorage.setItem(STORAGE_BALANCE_KEY, newBalance);
+    /**
+     * Initialize balance and currency settings
+     */
+    function initBalanceAndCurrency() {
+        // Initialize initial balance if not set
+        if (localStorage.getItem(STORAGE_INIT_BALANCE_KEY) === null) {
+            console.log('[SYSTEM] Setting initial balance to 100');
+            localStorage.setItem(STORAGE_INIT_BALANCE_KEY, '100');
+        }
+        
+        // Get current balance
+        let currentBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
+        
+        // Try to get currency info from global currency handler if available
+        if (window.currencyHandler) {
+            userCurrency = window.currencyHandler.userCurrency;
+            currencySymbol = window.currencyHandler.currencySymbol;
+            exchangeRate = window.currencyHandler.exchangeRate;
+            console.log(`[SYSTEM] Using currency handler: ${userCurrency}, rate: ${exchangeRate}`);
+        } else {
+            // Fallback to localization manager or defaults
+            if (window.localizationManager) {
+                const countrySettings = CONFIG.countries[window.localizationManager.currentCountry] || CONFIG.default;
+                userCurrency = countrySettings.currency_name;
+                
+                // Set default exchange rates (simplified)
+                const rates = {
+                    'EUR': 1,
+                    'USD': 1.08,
+                    'GBP': 0.86,
+                    'CAD': 1.48,
+                    'AUD': 1.65,
+                    'AED': 3.97,
+                    'CNY': 7.8,
+                    'JPY': 160.5,
+                    'INR': 89.7
+                };
+                
+                // Set currency symbols
+                const symbols = {
+                    'EUR': '€',
+                    'USD': '$',
+                    'GBP': '£',
+                    'CNY': '¥',
+                    'JPY': '¥',
+                    'INR': '₹',
+                    'CAD': 'C$',
+                    'AUD': 'A$',
+                    'AED': 'AED'
+                };
+                
+                currencySymbol = symbols[userCurrency] || '$';
+                exchangeRate = rates[userCurrency] || 1;
+            }
+        }
+        
+        // Update currency display in UI
+        if (balanceCurrencyElement) {
+            balanceCurrencyElement.textContent = userCurrency;
+        }
+        
+        // Update currency display in modal
+        if (winModalCurrency) {
+            winModalCurrency.textContent = userCurrency;
+        }
         
         // Update balance display
         if (balanceElement) {
-            const balanceInUserCurrency = convertToUserCurrency(newBalance);
+            const balanceInUserCurrency = convertToUserCurrency(currentBalanceEUR);
             balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
         }
         
-        console.log(`[PROMO] Balance updated from game: ${newBalance} EUR`);
-        
-        // Check if this was a spin
-        if (data.spinMade) {
-            spinCounter++;
-            console.log(`[PROMO] Spin detected! Total spins: ${spinCounter}`);
-            
-            // Check if we should show modal after a short delay 
-            // (to allow animations to complete)
-            setTimeout(() => {
-                checkModalConditions(newBalance);
-            }, 1000);
-        }
-    } else if (data.type === 'GAME_STARTED' || data.type === 'GAME_READY') {
-        console.log('[PROMO] Game is ready, syncing balance');
-        syncBalanceWithGame();
-    }
-}
-
-// Make sure the handlePromoActivation function resets spin counter when a large promo is activated
-// Add this code to your existing handlePromoActivation function after updating the balance
-function updateAfterPromoCode(previousBalance, currentBalanceEUR, promoAmount) {
-    // Convert balances to user currency
-    const previousBalanceInUserCurrency = convertToUserCurrency(previousBalance);
-    const newBalanceInUserCurrency = convertToUserCurrency(currentBalanceEUR);
-    
-    // If this promo pushed the balance above the threshold, 
-    // reset spin counter and flag it as a large promo
-    if (promoAmount >= MIN_BALANCE_FOR_MODAL / exchangeRate || 
-        (previousBalanceInUserCurrency < MIN_BALANCE_FOR_MODAL && 
-         newBalanceInUserCurrency >= MIN_BALANCE_FOR_MODAL)) {
-        console.log('[PROMO] Large promo activated, resetting spin counter');
-        spinCounter = 0;
-        
-        // Set flags to indicate we need to wait for spins
-        localStorage.setItem('fruitParadisePromoActivated', 'true');
-        localStorage.setItem('fruitParadisePromoTimestamp', new Date().getTime().toString());
+        console.log(`[SYSTEM] Balance and currency initialized: ${currentBalanceEUR} EUR, ${userCurrency}, rate: ${exchangeRate}`);
     }
     
-    // Check modal conditions after a short delay
-    setTimeout(() => {
-        checkModalConditions(currentBalanceEUR);
-    }, 1000);
-}
-
-// Enhanced createConfetti function for better visual effect
-function createConfetti() {
-    const confettiCount = 100;
-    const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#2ecc71', '#9b59b6'];
-    
-    // Find container for confetti
-    const confettiContainer = document.querySelector('.win-confetti');
-    if (!confettiContainer) return;
-    
-    // Clear previous confetti
-    confettiContainer.innerHTML = '';
-    
-    // Create new confetti pieces
-    for (let i = 0; i < confettiCount; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        confetti.style.left = `${Math.random() * 100}%`;
-        confetti.style.width = `${Math.random() * 10 + 5}px`;
-        confetti.style.height = `${Math.random() * 10 + 5}px`;
-        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        confetti.style.opacity = Math.random() * 0.8 + 0.2;
-        confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-        confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
-        confetti.style.animationDelay = `${Math.random() * 2}s`;
-        confetti.style.position = 'absolute';
-        confetti.style.animation = 'confettiDrop linear forwards';
-        
-        confettiContainer.appendChild(confetti);
-    }
-    
-    // Add animation style if not already present
-    if (!document.getElementById('confetti-style')) {
-        const style = document.createElement('style');
-        style.id = 'confetti-style';
-        style.textContent = `
-            @keyframes confettiDrop {
-                0% { 
-                    top: -20px; 
-                    transform: translateX(0) rotate(0deg);
-                }
-                100% { 
-                    top: 100%; 
-                    transform: translateX(${Math.random() > 0.5 ? '+' : '-'}${Math.random() * 100}px) rotate(${Math.random() * 360}deg);
-                }
-            }
-            
-            .confetti {
-                position: absolute;
-                top: -20px;
-                animation-duration: 3s;
-                animation-timing-function: ease-in;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-}
-
-// Initialize by checking current balance on page load
-function initWinModalSystem() {
-    // Get initial balance
-    const initialBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
-    
-    // Check if modal should be shown initially
-    checkModalConditions(initialBalanceEUR);
-    
-    console.log('[PROMO] Win modal system initialized');
-}
-
-// Run initialization
-initWinModalSystem();/**
- * Fixes for Win Modal - To be added to the existing promo-system.js file
- * 
- * This script fixes the win modal functionality without breaking the existing promo code system.
- * It should be added to the bottom of the document.addEventListener('DOMContentLoaded') function
- * in the promo-system.js file, just before the closing bracket.
- */
-
-// Update these constants at the top of the file (inside the DOMContentLoaded callback)
-const MIN_BALANCE_FOR_MODAL = 100; // Minimum balance in user currency to show modal
-const MIN_SPINS_BEFORE_MODAL = 3;  // Minimum spins after large promo to show modal
-let spinCounter = 0;                // Track number of spins
-
-// Replace the existing checkModalConditions function with this improved version
-function checkModalConditions(balanceEUR) {
-    console.log('[PROMO] Checking modal conditions');
-    
-    // Convert to user currency
-    const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
-    
-    console.log(`[PROMO] Balance: ${balanceInUserCurrency} ${userCurrency}, Threshold: ${MIN_BALANCE_FOR_MODAL}`);
-    console.log(`[PROMO] Spins: ${spinCounter}`);
-    
-    // Check if balance is below threshold - don't show modal in this case
-    if (balanceInUserCurrency < MIN_BALANCE_FOR_MODAL) {
-        // If modal is open but balance dropped, close it
-        if (winModal && winModal.style.display === 'flex') {
-            console.log('[PROMO] Balance below threshold, closing modal');
-            closeWinModal();
-        }
-        return;
-    }
-    
-    // Check if this was triggered by promo code
-    const promoActivated = localStorage.getItem('fruitParadisePromoActivated');
-    const promoTimestamp = parseInt(localStorage.getItem('fruitParadisePromoTimestamp') || '0');
-    const currentTime = new Date().getTime();
-    const isRecentPromo = (currentTime - promoTimestamp) < 60000; // Within the last minute
-    
-    // If balance came from recent promo and less than MIN_SPINS_BEFORE_MODAL spins made, don't show modal yet
-    if (promoActivated === 'true' && isRecentPromo && spinCounter < MIN_SPINS_BEFORE_MODAL) {
-        console.log(`[PROMO] Recent promo balance, waiting for ${MIN_SPINS_BEFORE_MODAL} spins (current: ${spinCounter})`);
-        return;
-    }
-    
-    // Show modal if all conditions are met
-    console.log('[PROMO] All conditions met, showing win modal');
-    showWinModal(balanceEUR);
-}
-
-// Replace the existing showWinModal function with this improved version
-function showWinModal(balanceEUR) {
-    if (!winModal) {
-        console.warn('[PROMO] Win modal element not found');
-        return;
-    }
-    
-    // Convert to user currency
-    const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
-    
-    // Set amount in modal
-    if (winModalAmount) {
-        winModalAmount.textContent = formatCurrency(balanceInUserCurrency, false);
-    }
-    
-    // Set currency
-    if (winModalCurrency) {
-        winModalCurrency.textContent = userCurrency;
-    }
-    
-    // Show modal
-    winModal.style.display = 'flex';
-    
-    // Create confetti animation
-    createConfetti();
-    
-    console.log('[PROMO] Win modal displayed with balance:', balanceInUserCurrency, userCurrency);
-}
-
-// Enhanced receiveMessageFromGame function to track spins
-function receiveMessageFromGame(event) {
-    // Check source (not strictly)
-    const data = event.data;
-    
-    if (typeof data !== 'object' || !data.type) {
-        return;
-    }
-    
-    console.log('[PROMO] Received message from game:', data);
-    
-    if (data.type === 'UPDATE_BALANCE') {
-        // Get new balance
-        const newBalance = parseFloat(data.balance) || 0;
-        localStorage.setItem(STORAGE_BALANCE_KEY, newBalance);
-        
-        // Update balance display
-        if (balanceElement) {
-            const balanceInUserCurrency = convertToUserCurrency(newBalance);
-            balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
+    /**
+     * Setup promo code system
+     */
+    function setupPromoSystem() {
+        if (activatePromoBtn) {
+            activatePromoBtn.addEventListener('click', handlePromoActivation);
+            console.log('[SYSTEM] Promo button listener added');
         }
         
-        console.log(`[PROMO] Balance updated from game: ${newBalance} EUR`);
-        
-        // Check if this was a spin
-        if (data.spinMade) {
-            spinCounter++;
-            console.log(`[PROMO] Spin detected! Total spins: ${spinCounter}`);
-            
-            // Check if we should show modal after a short delay 
-            // (to allow animations to complete)
-            setTimeout(() => {
-                checkModalConditions(newBalance);
-            }, 1000);
-        }
-    } else if (data.type === 'GAME_STARTED' || data.type === 'GAME_READY') {
-        console.log('[PROMO] Game is ready, syncing balance');
-        syncBalanceWithGame();
-    }
-}
-
-// Make sure the handlePromoActivation function resets spin counter when a large promo is activated
-// Add this code to your existing handlePromoActivation function after updating the balance
-function updateAfterPromoCode(previousBalance, currentBalanceEUR, promoAmount) {
-    // Convert balances to user currency
-    const previousBalanceInUserCurrency = convertToUserCurrency(previousBalance);
-    const newBalanceInUserCurrency = convertToUserCurrency(currentBalanceEUR);
-    
-    // If this promo pushed the balance above the threshold, 
-    // reset spin counter and flag it as a large promo
-    if (promoAmount >= MIN_BALANCE_FOR_MODAL / exchangeRate || 
-        (previousBalanceInUserCurrency < MIN_BALANCE_FOR_MODAL && 
-         newBalanceInUserCurrency >= MIN_BALANCE_FOR_MODAL)) {
-        console.log('[PROMO] Large promo activated, resetting spin counter');
-        spinCounter = 0;
-        
-        // Set flags to indicate we need to wait for spins
-        localStorage.setItem('fruitParadisePromoActivated', 'true');
-        localStorage.setItem('fruitParadisePromoTimestamp', new Date().getTime().toString());
-    }
-    
-    // Check modal conditions after a short delay
-    setTimeout(() => {
-        checkModalConditions(currentBalanceEUR);
-    }, 1000);
-}
-
-// Enhanced createConfetti function for better visual effect
-function createConfetti() {
-    const confettiCount = 100;
-    const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#2ecc71', '#9b59b6'];
-    
-    // Find container for confetti
-    const confettiContainer = document.querySelector('.win-confetti');
-    if (!confettiContainer) return;
-    
-    // Clear previous confetti
-    confettiContainer.innerHTML = '';
-    
-    // Create new confetti pieces
-    for (let i = 0; i < confettiCount; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        confetti.style.left = `${Math.random() * 100}%`;
-        confetti.style.width = `${Math.random() * 10 + 5}px`;
-        confetti.style.height = `${Math.random() * 10 + 5}px`;
-        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        confetti.style.opacity = Math.random() * 0.8 + 0.2;
-        confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-        confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
-        confetti.style.animationDelay = `${Math.random() * 2}s`;
-        confetti.style.position = 'absolute';
-        confetti.style.animation = 'confettiDrop linear forwards';
-        
-        confettiContainer.appendChild(confetti);
-    }
-    
-    // Add animation style if not already present
-    if (!document.getElementById('confetti-style')) {
-        const style = document.createElement('style');
-        style.id = 'confetti-style';
-        style.textContent = `
-            @keyframes confettiDrop {
-                0% { 
-                    top: -20px; 
-                    transform: translateX(0) rotate(0deg);
+        if (promoCodeInput) {
+            promoCodeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handlePromoActivation();
                 }
-                100% { 
-                    top: 100%; 
-                    transform: translateX(${Math.random() > 0.5 ? '+' : '-'}${Math.random() * 100}px) rotate(${Math.random() * 360}deg);
-                }
-            }
-            
-            .confetti {
-                position: absolute;
-                top: -20px;
-                animation-duration: 3s;
-                animation-timing-function: ease-in;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-}
-
-// Initialize by checking current balance on page load
-function initWinModalSystem() {
-    // Get initial balance
-    const initialBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
-    
-    // Check if modal should be shown initially
-    checkModalConditions(initialBalanceEUR);
-    
-    console.log('[PROMO] Win modal system initialized');
-}
-
-// Run initialization
-initWinModalSystem();
-balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
-            }
-        } catch (e) {
-            console.error('[PROMO] Error syncing balance with game:', e);
+            });
         }
     }
     
     /**
-     * Перезагрузка iframe с игрой
+     * Set up all necessary event listeners
+     */
+    function setupEventListeners() {
+        // Listen for messages from the game iframe
+        window.addEventListener('message', handleGameMessages);
+        
+        // Attach event listener to claim button outside modal
+        if (claimWinningsBtn) {
+            claimWinningsBtn.addEventListener('click', handleClaimWinnings);
+        }
+        
+        // Handle game frame load event for balance syncing
+        if (gameFrame) {
+            gameFrame.addEventListener('load', function() {
+                console.log('[SYSTEM] Game frame loaded, syncing balance');
+                syncBalanceWithGame();
+            });
+        }
+        
+        console.log('[SYSTEM] Event listeners set up');
+    }
+    
+    /**
+     * Handle messages from the game iframe
+     */
+    function handleGameMessages(event) {
+        const data = event.data;
+        
+        // Ensure we have a valid message with a type
+        if (!data || typeof data !== 'object' || !data.type) {
+            return;
+        }
+        
+        console.log('[SYSTEM] Received message from game:', data);
+        
+        // Handle balance updates and spin detection
+        if (data.type === 'UPDATE_BALANCE') {
+            // Get the new balance in EUR (internal currency)
+            const newBalanceEUR = parseFloat(data.balance);
+            
+            // Update the last known balance
+            lastKnownBalance = newBalanceEUR;
+            localStorage.setItem(STORAGE_BALANCE_KEY, newBalanceEUR.toString());
+            
+            // Update balance display
+            if (balanceElement) {
+                const balanceInUserCurrency = convertToUserCurrency(newBalanceEUR);
+                balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
+            }
+            
+            // If this update includes a spin notification
+            if (data.spinMade === true) {
+                spinCounter++;
+                console.log(`[SYSTEM] Spin detected! Total spins: ${spinCounter}`);
+                
+                // Check if we should show the modal
+                setTimeout(() => {
+                    checkModalConditions(newBalanceEUR);
+                }, 500);
+            }
+        } else if (data.type === 'GAME_STARTED' || data.type === 'GAME_READY') {
+            // Game is ready, sync the balance
+            syncBalanceWithGame();
+        }
+    }
+    
+    /**
+     * Process promo code activation
+     */
+    function handlePromoActivation() {
+        if (!promoCodeInput || !promoMessage) {
+            console.warn('[SYSTEM] Promo input or message element not found');
+            return;
+        }
+        
+        const code = promoCodeInput.value.trim().toUpperCase();
+        
+        if (!code) {
+            showPromoMessage('Please enter a promo code', 'error');
+            return;
+        }
+        
+        console.log(`[SYSTEM] Processing promo code: ${code}`);
+        
+        // Get data about used promo codes
+        const usedPromoCodes = JSON.parse(localStorage.getItem(STORAGE_USED_PROMOS_KEY)) || [];
+        
+        // Get available promo codes
+        const availablePromos = JSON.parse(localStorage.getItem(STORAGE_PROMOS_KEY)) || [];
+        const promo = availablePromos.find(p => p.code.toUpperCase() === code);
+        
+        if (!promo) {
+            showPromoMessage('Invalid promo code', 'error');
+            return;
+        }
+        
+        // Check if this user has used the promo code before
+        if (hasUserUsedPromoCode(code)) {
+            showPromoMessage(`You have already used promo code ${code}`, 'error');
+            return;
+        }
+        
+        // Check global usage limitations
+        const usedPromoEntry = usedPromoCodes.find(p => p.code === code);
+        const currentUsageCount = usedPromoEntry ? usedPromoEntry.usageCount : 0;
+        
+        // Check activation limit
+        const maxActivations = promo.maxActivations || Infinity;
+        
+        if (currentUsageCount >= maxActivations) {
+            showPromoMessage(`Promo code ${code} is no longer valid (activation limit reached)`, 'error');
+            return;
+        }
+        
+        // Get current balance in EUR
+        let currentBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
+        const previousBalance = currentBalanceEUR;
+        
+        // Apply the promo bonus
+        currentBalanceEUR += promo.amount;
+        
+        console.log(`[SYSTEM] Applying promo: ${previousBalance} EUR -> ${currentBalanceEUR} EUR (+${promo.amount} EUR)`);
+        
+        // Update balance in localStorage
+        localStorage.setItem(STORAGE_BALANCE_KEY, currentBalanceEUR.toString());
+        
+        // Mark promo as recently activated
+        localStorage.setItem('fruitParadisePromoActivated', 'true');
+        localStorage.setItem('fruitParadisePromoTimestamp', new Date().getTime().toString());
+        
+        // Reset spin counter if this is a large promo that takes balance above threshold
+        const previousBalanceInUserCurrency = convertToUserCurrency(previousBalance);
+        const newBalanceInUserCurrency = convertToUserCurrency(currentBalanceEUR);
+        
+        if (promo.amount >= THRESHOLD_BALANCE / exchangeRate || 
+            (previousBalanceInUserCurrency < THRESHOLD_BALANCE && newBalanceInUserCurrency >= THRESHOLD_BALANCE)) {
+            console.log('[SYSTEM] Large promo activated, resetting spin counter');
+            spinCounter = 0;
+            localStorage.setItem('fruitParadiseNeedsSpins', 'true');
+        }
+        
+        // Update global usage counter
+        if (usedPromoEntry) {
+            usedPromoEntry.usageCount += 1;
+        } else {
+            usedPromoCodes.push({
+                code: code,
+                usageCount: 1,
+                lastUsed: new Date().toISOString()
+            });
+        }
+        localStorage.setItem(STORAGE_USED_PROMOS_KEY, JSON.stringify(usedPromoCodes));
+        
+        // Mark promo as used by this user
+        markPromoCodeAsUsedByUser(code);
+        
+        // Format promo amount for display
+        const promoAmountInUserCurrency = convertToUserCurrency(promo.amount);
+        const formattedPromoAmount = formatCurrency(promoAmountInUserCurrency);
+        
+        // Show success message
+        const remainingActivations = maxActivations - (currentUsageCount + 1);
+        let successMessage = `Promo code ${code} activated! You received ${formattedPromoAmount}`;
+        if (maxActivations !== Infinity && remainingActivations > 0) {
+            successMessage += ` (${remainingActivations} activations remaining)`;
+        } else if (maxActivations !== Infinity && remainingActivations === 0) {
+            successMessage += ` (this was the last activation)`;
+        }
+        
+        showPromoMessage(successMessage, 'success');
+        
+        // Clear the input field
+        promoCodeInput.value = '';
+        
+        // Update balance display
+        if (balanceElement) {
+            balanceElement.textContent = formatCurrency(newBalanceInUserCurrency, false);
+        }
+        
+        // Reload the game frame
+        reloadGameFrame();
+        
+        // Check if win threshold is reached
+        setTimeout(() => {
+            checkModalConditions(currentBalanceEUR);
+        }, 1000);
+    }
+    
+    /**
+     * Display promo code activation result message
+     */
+    function showPromoMessage(message, type) {
+        if (!promoMessage) return;
+        
+        promoMessage.textContent = message;
+        promoMessage.className = 'promo-message';
+        promoMessage.classList.add(type);
+        promoMessage.style.display = 'block';
+        promoMessage.style.opacity = '1';
+        
+        // Hide message after 3 seconds
+        setTimeout(() => {
+            promoMessage.style.opacity = '0';
+            
+            setTimeout(() => {
+                promoMessage.style.display = 'none';
+                promoMessage.style.opacity = '1';
+            }, 300);
+        }, 3000);
+    }
+    
+    /**
+     * Check if win modal should be shown based on current conditions
+     */
+    function checkModalConditions(balanceEUR) {
+        // Convert to user currency for comparing against threshold
+        const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
+        
+        console.log(`[SYSTEM] Checking modal conditions: Balance ${balanceInUserCurrency} ${userCurrency}, Spins ${spinCounter}`);
+        
+        // First condition: Balance is below threshold, don't show modal
+        if (balanceInUserCurrency < THRESHOLD_BALANCE) {
+            closeWinModal(); // Close modal if it's open but balance dropped below
+            localStorage.setItem('fruitParadiseNeedsSpins', 'false'); // Reset needs spins flag
+            return;
+        }
+        
+        // Check if we need to wait for spins after a large promo
+        const needsSpins = localStorage.getItem('fruitParadiseNeedsSpins') === 'true';
+        
+        if (needsSpins && spinCounter < MIN_SPINS_AFTER_PROMO) {
+            console.log(`[SYSTEM] Waiting for more spins: ${spinCounter}/${MIN_SPINS_AFTER_PROMO}`);
+            return;
+        }
+        
+        // All conditions met, show the modal!
+        showWinModal(balanceEUR);
+        
+        // Reset the needs spins flag
+        if (needsSpins && spinCounter >= MIN_SPINS_AFTER_PROMO) {
+            localStorage.setItem('fruitParadiseNeedsSpins', 'false');
+        }
+    }
+    
+    /**
+     * Show the win modal with current balance
+     */
+    function showWinModal(balanceEUR) {
+        if (!winModal) return;
+        
+        // Skip if modal is already showing
+        if (winModal.style.display === 'flex') {
+            return;
+        }
+        
+        // Convert to user currency and format for display
+        const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
+        
+        // Update modal content
+        if (winModalAmount) {
+            winModalAmount.textContent = formatCurrency(balanceInUserCurrency, false);
+        }
+        
+        if (winModalCurrency) {
+            winModalCurrency.textContent = userCurrency;
+        }
+        
+        // Show modal
+        winModal.style.display = 'flex';
+        modalShown = true;
+        
+        // Create confetti animation
+        createConfetti();
+        
+        console.log(`[SYSTEM] Win modal displayed with balance: ${balanceInUserCurrency} ${userCurrency}`);
+    }
+    
+    /**
+     * Close the win modal
+     */
+    function closeWinModal() {
+        if (!winModal) return;
+        
+        winModal.style.opacity = '0';
+        
+        setTimeout(() => {
+            winModal.style.display = 'none';
+            winModal.style.opacity = '1';
+            modalShown = false;
+            
+            // Clean up confetti
+            const confettiContainer = winModal.querySelector('.win-confetti');
+            if (confettiContainer) {
+                confettiContainer.innerHTML = '';
+            }
+        }, 300);
+        
+        console.log('[SYSTEM] Win modal closed');
+    }
+    
+    /**
+     * Handle the claim winnings button click
+     */
+    function handleClaimWinnings() {
+        console.log('[SYSTEM] Claim winnings button clicked');
+        
+        // Get thresholds from localStorage
+        const thresholds = JSON.parse(localStorage.getItem(STORAGE_THRESHOLDS_KEY)) || [];
+        
+        // Get current balance
+        const currentBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
+        
+        // Find appropriate threshold for redirect
+        let targetUrl = null;
+        let highestThresholdAmount = 0;
+        
+        for (const threshold of thresholds) {
+            if (currentBalanceEUR >= threshold.amount && threshold.amount > highestThresholdAmount) {
+                targetUrl = threshold.redirectUrl;
+                highestThresholdAmount = threshold.amount;
+            }
+        }
+        
+        // Close modal if open
+        closeWinModal();
+        
+        // Navigate to appropriate URL
+        if (targetUrl) {
+            console.log(`[SYSTEM] Redirecting to: ${targetUrl}`);
+            window.location.href = targetUrl;
+        } else {
+            // Default redirect
+            console.log('[SYSTEM] No threshold matched, redirecting to default');
+            window.location.href = "/claim";
+        }
+    }
+    
+    /**
+     * Convert a EUR amount to user currency
+     */
+    function convertToUserCurrency(amountEUR) {
+        return amountEUR * exchangeRate;
+    }
+    
+    /**
+     * Format currency for display
+     */
+    function formatCurrency(amount, withSymbol = true) {
+        // Round to 2 decimal places
+        const formattedAmount = Math.round(amount * 100) / 100;
+        
+        // Don't use decimal places for JPY
+        if (userCurrency === 'JPY') {
+            return withSymbol ? `${currencySymbol}${Math.round(formattedAmount)}` : Math.round(formattedAmount).toString();
+        }
+        
+        // Format with 2 decimal places
+        return withSymbol 
+            ? `${currencySymbol}${formattedAmount.toFixed(2)}`
+            : formattedAmount.toFixed(2);
+    }
+    
+    /**
+     * Create confetti animation inside modal
+     */
+    function createConfetti() {
+        const confettiCount = 100;
+        const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#2ecc71', '#9b59b6'];
+        
+        // Find confetti container
+        const confettiContainer = document.querySelector('.win-confetti');
+        if (!confettiContainer) return;
+        
+        // Clear previous confetti
+        confettiContainer.innerHTML = '';
+        
+        // Create new confetti elements
+        for (let i = 0; i < confettiCount; i++) {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti-piece';
+            confetti.style.left = `${Math.random() * 100}%`;
+            confetti.style.width = `${Math.random() * 10 + 5}px`;
+            confetti.style.height = `${Math.random() * 10 + 5}px`;
+            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.opacity = Math.random() * 0.8 + 0.2;
+            confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+            confetti.style.animation = `fall ${Math.random() * 3 + 2}s linear infinite`;
+            confetti.style.animationDelay = `${Math.random() * 2}s`;
+            
+            confettiContainer.appendChild(confetti);
+        }
+        
+        // Add the CSS for animation if not already present
+        if (!document.getElementById('confetti-style')) {
+            const style = document.createElement('style');
+            style.id = 'confetti-style';
+            style.innerHTML = `
+                .confetti-piece {
+                    position: absolute;
+                    top: -20px;
+                    z-index: 1;
+                }
+                
+                @keyframes fall {
+                    0% {
+                        top: -20px;
+                        transform: translateX(0) rotate(0deg);
+                    }
+                    100% {
+                        top: 100%;
+                        transform: translateX(${Math.random() > 0.5 ? '+' : '-'}${Math.random() * 100}px) rotate(${Math.random() * 360}deg);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    
+    /**
+     * Check if user has used a promo code before
+     */
+    function hasUserUsedPromoCode(code) {
+        const userId = getUserId();
+        const userUsedCodes = JSON.parse(localStorage.getItem(STORAGE_USER_PROMOS_KEY)) || {};
+        
+        // If no records for this user or code, they haven't used it
+        if (!userUsedCodes[userId] || !userUsedCodes[userId].includes(code)) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Mark promo code as used by current user
+     */
+    function markPromoCodeAsUsedByUser(code) {
+        const userId = getUserId();
+        const userUsedCodes = JSON.parse(localStorage.getItem(STORAGE_USER_PROMOS_KEY)) || {};
+        
+        // Initialize array for this user if needed
+        if (!userUsedCodes[userId]) {
+            userUsedCodes[userId] = [];
+        }
+        
+        // Add code to list of used by user if not already there
+        if (!userUsedCodes[userId].includes(code)) {
+            userUsedCodes[userId].push(code);
+            localStorage.setItem(STORAGE_USER_PROMOS_KEY, JSON.stringify(userUsedCodes));
+        }
+    }
+    
+    /**
+     * Generate unique user ID
+     */
+    function getUserId() {
+        let userId = localStorage.getItem(STORAGE_USER_ID_KEY);
+        
+        if (!userId) {
+            // Generate pseudo-random ID for user
+            userId = 'user_' + Math.random().toString(36).substring(2, 15) + 
+                     Math.random().toString(36).substring(2, 15);
+            localStorage.setItem(STORAGE_USER_ID_KEY, userId);
+        }
+        
+        return userId;
+    }
+    
+    /**
+     * Sync balance with game iframe
+     */
+    function syncBalanceWithGame() {
+        if (!gameFrame) {
+            console.warn('[SYSTEM] Game frame not found, cannot sync balance');
+            return;
+        }
+        
+        // Get current balance
+        const currentBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
+        
+        console.log(`[SYSTEM] Syncing balance with game: ${currentBalanceEUR} EUR`);
+        
+        try {
+            // Update in localStorage (main sync method)
+            localStorage.setItem(STORAGE_BALANCE_KEY, currentBalanceEUR.toString());
+            
+            // Send message to iframe
+            if (gameFrame.contentWindow) {
+                gameFrame.contentWindow.postMessage({
+                    type: 'SET_BALANCE',
+                    balance: currentBalanceEUR
+                }, '*');
+            }
+            
+            // Update UI display
+            if (balanceElement) {
+                const balanceInUserCurrency = convertToUserCurrency(currentBalanceEUR);
+                balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
+            }
+        } catch (e) {
+            console.error('[SYSTEM] Error syncing balance with game:', e);
+        }
+    }
+    
+    /**
+     * Reload game iframe
      */
     function reloadGameFrame() {
-        const gameFrame = document.getElementById('game-frame');
         if (!gameFrame) return;
         
-        // Показываем временное сообщение о загрузке
+        // Create loading overlay
         const loadingOverlay = document.createElement('div');
         loadingOverlay.style.position = 'absolute';
         loadingOverlay.style.top = '0';
@@ -469,7 +733,7 @@ balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
         spinner.style.marginBottom = '15px';
         
         const loadingText = document.createElement('div');
-        loadingText.innerText = 'Обновление баланса...';
+        loadingText.innerText = 'Updating balance...';
         loadingText.style.color = 'var(--royal-gold)';
         loadingText.style.fontSize = '18px';
         loadingText.style.fontWeight = 'bold';
@@ -483,36 +747,32 @@ balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
             iframeWrapper.appendChild(loadingOverlay);
         }
         
-        // Перезагружаем iframe через небольшую задержку
+        // Reload iframe after short delay
         setTimeout(() => {
             const currentSrc = gameFrame.src;
             const refreshParam = 'refresh=' + Date.now();
             const separator = currentSrc.includes('?') ? '&' : '?';
             gameFrame.src = currentSrc + separator + refreshParam;
             
-            // Удаляем оверлей после полной загрузки iframe
+            // Remove overlay after frame loads
             gameFrame.onload = function() {
                 if (iframeWrapper && iframeWrapper.contains(loadingOverlay)) {
                     iframeWrapper.removeChild(loadingOverlay);
                 }
                 
-                // Синхронизируем баланс после загрузки
+                // Sync balance after loading
                 setTimeout(syncBalanceWithGame, 1000);
             };
         }, 500);
         
-        console.log('[PROMO] Game frame reload initiated');
+        console.log('[SYSTEM] Game frame reload initiated');
     }
     
-    // Инициализация системы промокодов при загрузке страницы
-    console.log('[PROMO] Initializing promo system');
-    initUI();
-    
-    // Экспорт функций для возможного использования из других скриптов
-    window.promoSystem = {
-        syncBalance: syncBalanceWithGame,
-        showWinModal: showWinModal,
-        closeWinModal: closeWinModal,
-        checkModalConditions: checkModalConditions
+    // Export functions for use by other scripts
+    window.fruitParadiseSystem = {
+        showWinModal,
+        closeWinModal,
+        checkModalConditions,
+        syncBalanceWithGame
     };
 });
