@@ -1,442 +1,272 @@
 /**
- * Система промокодов и управления балансом для слот-машины Fruit Paradise
- * С поддержкой ограниченного количества активаций промокодов и улучшенной синхронизацией
+ * Enhanced Win Modal System
+ * This code manages when to display the win modal based on user balance and slot spins
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Константы и переменные
-    const STORAGE_BALANCE_KEY = 'fruitParadiseBalance';
-    const STORAGE_INIT_BALANCE_KEY = 'fruitParadiseInitBalance'; // Отдельный ключ для начального баланса
-    const STORAGE_PROMOS_KEY = 'fruitParadisePromoCodes';
-    const STORAGE_USED_PROMOS_KEY = 'fruitParadiseUsedCodes';
-    const STORAGE_THRESHOLDS_KEY = 'fruitParadiseThresholds';
-    const STORAGE_USER_PROMOS_KEY = 'fruitParadiseUserUsedCodes'; // Track per-user usage
-    const STORAGE_USER_ID_KEY = 'fruitParadiseUserId'; // Unique user identifier
+    // Constants
+    const THRESHOLD_BALANCE = 100; // Balance threshold in user currency
+    const MIN_SPINS_AFTER_PROMO = 3; // Minimum spins required after a large promo activation
     
-    // Переменные для механики показа модального окна
+    // State variables
     let spinCounter = 0;
-    const MIN_SPINS_BEFORE_MODAL = 3;
-    const MIN_BALANCE_FOR_MODAL = 100;
+    let modalShown = false;
+    let lastKnownBalance = 0;
+    let userCurrency = 'USD'; // Default, will be updated
+    let exchangeRate = 1; // Default, will be updated
     
-    // DOM элементы
-    const balanceElement = document.getElementById('balance-amount');
-    const balanceCurrency = document.querySelector('.balance-currency');
-    const promoCodeInput = document.getElementById('promo-code-input');
-    const activatePromoBtn = document.getElementById('activate-promo-btn');
-    const promoMessage = document.getElementById('promo-message');
-    const claimWinningsBtn = document.getElementById('claim-winnings-btn');
-    const gameFrame = document.getElementById('game-frame');
+    // DOM elements
     const winModal = document.getElementById('win-modal');
     const winModalAmount = document.getElementById('win-modal-amount');
     const winModalCurrency = document.getElementById('win-modal-currency');
     const winModalClaimBtn = document.getElementById('win-modal-claim-btn');
     const winModalCloseBtn = document.getElementById('win-modal-close-btn');
+    const balanceElement = document.getElementById('balance-amount');
+    const balanceCurrencyElement = document.querySelector('.balance-currency');
+    const claimWinningsBtn = document.getElementById('claim-winnings-btn');
+    const gameFrame = document.getElementById('game-frame');
     
-    // Переменные для работы с валютой
-    let userCurrency = 'EUR';
-    let currencySymbol = '€';
-    let exchangeRate = 1;
-    
-    // Инициализация элементов интерфейса
-    function initUI() {
-        console.log('[PROMO] Initializing UI components');
-        
-        // Загружаем текущий баланс
-        initBalanceAndCurrency();
-        
-        // Привязываем обработчики событий
-        if (activatePromoBtn) {
-            activatePromoBtn.addEventListener('click', handlePromoActivation);
-            console.log('[PROMO] Promo button listener added');
-        } else {
-            console.warn('[PROMO] Promo button not found');
-        }
-        
-        if (promoCodeInput) {
-            promoCodeInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    handlePromoActivation();
-                }
-            });
-        } else {
-            console.warn('[PROMO] Promo input not found');
-        }
-        
-        if (claimWinningsBtn) {
-            claimWinningsBtn.addEventListener('click', handleClaimWinnings);
-            console.log('[PROMO] Claim button listener added');
-        } else {
-            console.warn('[PROMO] Claim button not found');
-        }
-        
-        // Инициализация модального окна
-        initWinModal();
-        
-        // Устанавливаем обработчик для межоконного сообщения от игры
-        window.addEventListener('message', receiveMessageFromGame);
-        
-        // Добавляем обработчик загрузки iframe для синхронизации баланса
-        if (gameFrame) {
-            gameFrame.addEventListener('load', function() {
-                console.log('[PROMO] Game frame loaded, syncing balance');
-                syncBalanceWithGame();
-            });
-        } else {
-            console.warn('[PROMO] Game frame not found');
-        }
-        
-        // Проверяем, достигнут ли порог выигрыша при загрузке страницы
-        const currentBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
-        checkModalConditions(currentBalanceEUR);
-        
-        console.log('[PROMO] UI initialization complete');
-    }
+    // Initialize modal and event listeners
+    initWinModal();
+    setupEventListeners();
     
     /**
-     * Инициализация модального окна выигрыша
+     * Initialize win modal and its buttons
      */
     function initWinModal() {
         if (!winModal) {
-            console.warn('[PROMO] Win modal not found in DOM');
+            console.error('[MODAL] Win modal not found in DOM');
             return;
         }
         
-        console.log('[PROMO] Initializing win modal');
-        
-        // Устанавливаем обработчик для кнопки закрытия
+        // Close button event handler
         if (winModalCloseBtn) {
             winModalCloseBtn.addEventListener('click', closeWinModal);
-        } else {
-            console.warn('[PROMO] Win modal close button not found');
         }
         
-        // Устанавливаем обработчик для кнопки забрать выигрыш
+        // Claim button event handler
         if (winModalClaimBtn) {
             winModalClaimBtn.addEventListener('click', handleClaimWinnings);
-        } else {
-            console.warn('[PROMO] Win modal claim button not found');
         }
         
-        // Закрытие модального окна при клике вне его содержимого
+        // Close modal on click outside content
         winModal.addEventListener('click', function(e) {
             if (e.target === winModal) {
                 closeWinModal();
             }
         });
         
-        // Закрытие модального окна при нажатии клавиши Escape
+        // Close modal on Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && winModal.style.display === 'flex') {
                 closeWinModal();
             }
         });
+        
+        console.log('[MODAL] Win modal initialized');
     }
     
     /**
-     * Инициализация баланса и получение настроек валюты
+     * Set up all necessary event listeners
      */
-    function initBalanceAndCurrency() {
-        // Текущий баланс (в EUR)
-        let currentBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
+    function setupEventListeners() {
+        // Listen for messages from the game iframe
+        window.addEventListener('message', handleGameMessages);
         
-        // Инициализация начального баланса, если он не установлен
-        if (localStorage.getItem(STORAGE_INIT_BALANCE_KEY) === null) {
-            console.log('[PROMO] Setting initial balance to 100');
-            localStorage.setItem(STORAGE_INIT_BALANCE_KEY, '100');
+        // Attach event listener to claim button outside modal
+        if (claimWinningsBtn) {
+            claimWinningsBtn.addEventListener('click', handleClaimWinnings);
         }
         
-        // Проверяем, есть ли доступ к системе валют
-        if (window.currencyHandler) {
-            // Используем готовую систему валют
-            userCurrency = window.currencyHandler.userCurrency;
-            currencySymbol = window.currencyHandler.currencySymbol;
-            exchangeRate = window.currencyHandler.exchangeRate;
-            console.log(`[PROMO] Using currency handler: ${userCurrency}, rate: ${exchangeRate}`);
-        } else {
-            // Если системы валют нет, используем значения по умолчанию
-            // Получаем данные из настроек
-            const savedCurrency = localStorage.getItem('fruitParadiseCurrency');
-            if (savedCurrency) {
-                userCurrency = savedCurrency;
+        // Setup event listener for promo code activation
+        const activatePromoBtn = document.getElementById('activate-promo-btn');
+        if (activatePromoBtn) {
+            const originalClickHandler = activatePromoBtn.onclick;
+            
+            activatePromoBtn.onclick = function(event) {
+                // Call the original handler if it exists
+                if (typeof originalClickHandler === 'function') {
+                    originalClickHandler.call(this, event);
+                }
                 
-                // Устанавливаем символы валют
-                const symbols = {
-                    'EUR': '€',
-                    'USD': '$',
-                    'GBP': '£',
-                    'CNY': '¥',
-                    'JPY': '¥',
-                    'INR': '₹',
-                    'CAD': 'C$'
-                };
+                // Add our custom behavior - check after a slight delay
+                setTimeout(checkAfterPromoActivation, 500);
+            };
+        }
+        
+        // Initialize currency info
+        initCurrencyInfo();
+        
+        console.log('[MODAL] Event listeners set up');
+    }
+    
+    /**
+     * Handle messages from the game iframe
+     */
+    function handleGameMessages(event) {
+        const data = event.data;
+        
+        // Ensure we have a valid message with a type
+        if (!data || typeof data !== 'object' || !data.type) {
+            return;
+        }
+        
+        console.log('[MODAL] Received message from game:', data);
+        
+        // Handle balance updates and spin detection
+        if (data.type === 'UPDATE_BALANCE') {
+            // Get the new balance in EUR (internal currency)
+            const newBalanceEUR = parseFloat(data.balance);
+            
+            // Update the last known balance
+            lastKnownBalance = newBalanceEUR;
+            
+            // If this update includes a spin notification
+            if (data.spinMade === true) {
+                spinCounter++;
+                console.log(`[MODAL] Spin detected! Total spins: ${spinCounter}`);
                 
-                // Устанавливаем курсы валют относительно EUR
-                const rates = {
-                    'EUR': 1,
-                    'USD': 1.08,
-                    'GBP': 0.86,
-                    'CNY': 7.8,
-                    'JPY': 160.5,
-                    'INR': 89.7,
-                    'CAD': 1.48
-                };
-                
-                currencySymbol = symbols[userCurrency] || '€';
-                exchangeRate = rates[userCurrency] || 1;
+                // Check if we should show the modal
+                setTimeout(() => {
+                    checkModalConditions(newBalanceEUR);
+                }, 1000);
+            } else {
+                // If not a spin, still check conditions (but may be from a promo code)
+                checkModalConditions(newBalanceEUR);
             }
-            console.log(`[PROMO] Using default currency settings: ${userCurrency}, rate: ${exchangeRate}`);
+        }
+    }
+    
+    /**
+     * Check if modal should be shown after promo code activation
+     */
+    function checkAfterPromoActivation() {
+        // Check localStorage to see if a promo was recently activated
+        const promoActivated = localStorage.getItem('fruitParadisePromoActivated');
+        const currentBalance = parseFloat(localStorage.getItem('fruitParadiseBalance')) || 0;
+        
+        if (promoActivated === 'true') {
+            console.log('[MODAL] Promo was activated, checking balance and conditions');
+            
+            // Reset spin counter to ensure we track spins after promo
+            spinCounter = 0;
+            
+            // Convert EUR balance to user currency for threshold checking
+            const balanceInUserCurrency = convertToUserCurrency(currentBalance);
+            
+            // If promo gave enough to exceed threshold, mark that we need spins
+            if (balanceInUserCurrency >= THRESHOLD_BALANCE) {
+                localStorage.setItem('fruitParadiseNeedsSpins', 'true');
+                console.log(`[MODAL] Large promo activated (${balanceInUserCurrency} ${userCurrency}), waiting for ${MIN_SPINS_AFTER_PROMO} spins`);
+            }
+            
+            // Clear the activation flag
+            localStorage.setItem('fruitParadisePromoActivated', 'false');
+        }
+    }
+    
+    /**
+     * Check if modal should be shown based on current conditions
+     */
+    function checkModalConditions(balanceEUR) {
+        // Convert to user currency for comparing against threshold
+        const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
+        
+        console.log(`[MODAL] Checking conditions: Balance ${balanceInUserCurrency} ${userCurrency}, Spins ${spinCounter}`);
+        
+        // First condition: Balance is below threshold, don't show modal
+        if (balanceInUserCurrency < THRESHOLD_BALANCE) {
+            closeWinModal(); // Close modal if it's open but balance dropped below
+            localStorage.setItem('fruitParadiseNeedsSpins', 'false'); // Reset needs spins flag
+            return;
         }
         
-        // Обновляем отображение валюты
-        if (balanceCurrency) {
-            balanceCurrency.textContent = userCurrency;
+        // Check if we need to wait for spins after a large promo
+        const needsSpins = localStorage.getItem('fruitParadiseNeedsSpins') === 'true';
+        
+        if (needsSpins && spinCounter < MIN_SPINS_AFTER_PROMO) {
+            console.log(`[MODAL] Waiting for more spins: ${spinCounter}/${MIN_SPINS_AFTER_PROMO}`);
+            return;
         }
         
-        // Отображаем текущий баланс в валюте пользователя
-        if (balanceElement) {
-            const balanceInUserCurrency = currentBalanceEUR * exchangeRate;
-            balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
+        // All conditions met, show the modal!
+        showWinModal(balanceEUR);
+        
+        // Reset the needs spins flag
+        if (needsSpins && spinCounter >= MIN_SPINS_AFTER_PROMO) {
+            localStorage.setItem('fruitParadiseNeedsSpins', 'false');
+        }
+    }
+    
+    /**
+     * Show the win modal with current balance
+     */
+    function showWinModal(balanceEUR) {
+        if (!winModal) return;
+        
+        // Skip if modal is already showing
+        if (winModal.style.display === 'flex') {
+            return;
+        }
+        
+        // Convert to user currency and format for display
+        const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
+        
+        // Update modal content
+        if (winModalAmount) {
+            winModalAmount.textContent = formatCurrency(balanceInUserCurrency, false);
         }
         
         if (winModalCurrency) {
             winModalCurrency.textContent = userCurrency;
         }
         
-        console.log(`[PROMO] Initialized with: ${currentBalanceEUR} EUR, currency: ${userCurrency}, rate: ${exchangeRate}`);
+        // Show modal
+        winModal.style.display = 'flex';
+        modalShown = true;
+        
+        // Create confetti animation
+        createConfetti();
+        
+        console.log(`[MODAL] Win modal displayed with balance: ${balanceInUserCurrency} ${userCurrency}`);
     }
     
     /**
-     * Преобразование суммы из внутренней валюты (EUR) в валюту пользователя
+     * Close the win modal
      */
-    function convertToUserCurrency(amountInEur) {
-        return amountInEur * exchangeRate;
-    }
-    
-    /**
-     * Форматирование суммы в валюту пользователя
-     */
-    function formatCurrency(amount, withSymbol = true) {
-        // Округляем до 2 десятичных знаков
-        const formattedAmount = Math.round(amount * 100) / 100;
+    function closeWinModal() {
+        if (!winModal) return;
         
-        // Для йены не используем десятичные знаки
-        if (userCurrency === 'JPY') {
-            return withSymbol ? `${currencySymbol}${Math.round(formattedAmount)}` : Math.round(formattedAmount).toString();
-        }
+        winModal.style.opacity = '0';
         
-        // Для других валют используем 2 десятичных знака
-        return withSymbol 
-            ? `${currencySymbol}${formattedAmount.toFixed(2)}`
-            : formattedAmount.toFixed(2);
-    }
-    
-    /**
-     * Генерация уникального ID пользователя
-     */
-    function getUserId() {
-        let userId = localStorage.getItem(STORAGE_USER_ID_KEY);
-        
-        if (!userId) {
-            // Генерируем псевдо-случайный ID для пользователя
-            userId = 'user_' + Math.random().toString(36).substring(2, 15) + 
-                     Math.random().toString(36).substring(2, 15);
-            localStorage.setItem(STORAGE_USER_ID_KEY, userId);
-        }
-        
-        return userId;
-    }
-    
-    /**
-     * Проверка, использовал ли пользователь этот промокод ранее
-     */
-    function hasUserUsedPromoCode(code) {
-        const userId = getUserId();
-        const userUsedCodes = JSON.parse(localStorage.getItem(STORAGE_USER_PROMOS_KEY)) || {};
-        
-        // Если нет записей для этого пользователя или кода, значит они не использовали его
-        if (!userUsedCodes[userId] || !userUsedCodes[userId].includes(code)) {
-            return false;
-        }
-        
-        return true;
-    }
-    
-    /**
-     * Отметка промокода как использованного текущим пользователем
-     */
-    function markPromoCodeAsUsedByUser(code) {
-        const userId = getUserId();
-        const userUsedCodes = JSON.parse(localStorage.getItem(STORAGE_USER_PROMOS_KEY)) || {};
-        
-        // Инициализируем массив для этого пользователя, если нужно
-        if (!userUsedCodes[userId]) {
-            userUsedCodes[userId] = [];
-        }
-        
-        // Добавляем код в список использованных пользователем, если его там еще нет
-        if (!userUsedCodes[userId].includes(code)) {
-            userUsedCodes[userId].push(code);
-            localStorage.setItem(STORAGE_USER_PROMOS_KEY, JSON.stringify(userUsedCodes));
-        }
-    }
-    
-    /**
-     * Обработка активации промокода
-     */
-    function handlePromoActivation() {
-        if (!promoCodeInput || !promoMessage) {
-            console.warn('[PROMO] Promo input or message element not found');
-            return;
-        }
-        
-        const code = promoCodeInput.value.trim().toUpperCase();
-        
-        if (!code) {
-            showPromoMessage('Пожалуйста, введите промокод', 'error');
-            return;
-        }
-        
-        console.log(`[PROMO] Processing promo code: ${code}`);
-        
-        // Получаем данные об использованных промокодах
-        const usedPromoCodes = JSON.parse(localStorage.getItem(STORAGE_USED_PROMOS_KEY)) || [];
-        
-        // Получаем доступные промокоды
-        const availablePromos = JSON.parse(localStorage.getItem(STORAGE_PROMOS_KEY)) || [];
-        const promo = availablePromos.find(p => p.code.toUpperCase() === code);
-        
-        if (!promo) {
-            showPromoMessage('Неверный промокод', 'error');
-            return;
-        }
-        
-        // Проверяем, использовал ли этот пользователь промокод ранее
-        if (hasUserUsedPromoCode(code)) {
-            showPromoMessage(`Вы уже использовали промокод ${code}`, 'error');
-            return;
-        }
-        
-        // Проверяем глобальные ограничения использования
-        const usedPromoEntry = usedPromoCodes.find(p => p.code === code);
-        const currentUsageCount = usedPromoEntry ? usedPromoEntry.usageCount : 0;
-        
-        // Проверяем лимит активаций
-        const maxActivations = promo.maxActivations || Infinity;
-        
-        if (currentUsageCount >= maxActivations) {
-            showPromoMessage(`Промокод ${code} больше не действителен (достигнут лимит активаций)`, 'error');
-            return;
-        }
-        
-        // Получаем текущий баланс в EUR
-        let currentBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
-        const previousBalance = currentBalanceEUR;
-        
-        // Промокод валиден и не использован этим пользователем, применяем бонус
-        currentBalanceEUR += promo.amount;
-        
-        console.log(`[PROMO] Applying promo: ${previousBalance} EUR -> ${currentBalanceEUR} EUR (+${promo.amount} EUR)`);
-        
-        // Обновляем баланс в localStorage
-        localStorage.setItem(STORAGE_BALANCE_KEY, currentBalanceEUR.toString());
-        
-        // Отмечаем что промокод был недавно активирован
-        localStorage.setItem('fruitParadisePromoActivated', 'true');
-        localStorage.setItem('fruitParadisePromoTimestamp', new Date().getTime().toString());
-        
-        // Сбрасываем счетчик спинов если это крупный промокод, повышающий баланс выше порога
-        const previousBalanceInUserCurrency = convertToUserCurrency(previousBalance);
-        const newBalanceInUserCurrency = convertToUserCurrency(currentBalanceEUR);
-        
-        if (promo.amount >= MIN_BALANCE_FOR_MODAL / exchangeRate || 
-            (previousBalanceInUserCurrency < MIN_BALANCE_FOR_MODAL && newBalanceInUserCurrency >= MIN_BALANCE_FOR_MODAL)) {
-            console.log('[PROMO] Large promo activated, resetting spin counter');
-            spinCounter = 0;
-        }
-        
-        // Обновляем глобальный счетчик использований
-        if (usedPromoEntry) {
-            usedPromoEntry.usageCount += 1;
-        } else {
-            usedPromoCodes.push({
-                code: code,
-                usageCount: 1,
-                lastUsed: new Date().toISOString()
-            });
-        }
-        localStorage.setItem(STORAGE_USED_PROMOS_KEY, JSON.stringify(usedPromoCodes));
-        
-        // Отмечаем промокод как использованный этим пользователем
-        markPromoCodeAsUsedByUser(code);
-        
-        // Форматируем сумму для отображения
-        const promoAmountInUserCurrency = convertToUserCurrency(promo.amount);
-        const formattedPromoAmount = formatCurrency(promoAmountInUserCurrency);
-        
-        // Показываем сообщение об успехе
-        const remainingActivations = maxActivations - (currentUsageCount + 1);
-        let successMessage = `Промокод ${code} активирован! Вы получили ${formattedPromoAmount}`;
-        if (maxActivations !== Infinity && remainingActivations > 0) {
-            successMessage += ` (осталось активаций: ${remainingActivations})`;
-        } else if (maxActivations !== Infinity && remainingActivations === 0) {
-            successMessage += ` (это была последняя активация)`;
-        }
-        
-        showPromoMessage(successMessage, 'success');
-        
-        // Очищаем поле ввода
-        promoCodeInput.value = '';
-        
-        // Обновляем отображение баланса
-        if (balanceElement) {
-            balanceElement.textContent = formatCurrency(newBalanceInUserCurrency, false);
-        }
-        
-        // Перезагружаем iframe со слотом
-        reloadGameFrame();
-        
-        // Проверяем, достигнут ли порог выигрыша
         setTimeout(() => {
-            checkModalConditions(currentBalanceEUR);
-        }, 1000);
-    }
-    
-    /**
-     * Отображение сообщения о результате активации промокода
-     */
-    function showPromoMessage(message, type) {
-        if (!promoMessage) return;
-        
-        promoMessage.textContent = message;
-        promoMessage.className = 'promo-message';
-        promoMessage.classList.add(type);
-        promoMessage.style.display = 'block';
-        promoMessage.style.opacity = '1';
-        
-        // Скрываем сообщение через 3 секунды
-        setTimeout(() => {
-            promoMessage.style.opacity = '0';
+            winModal.style.display = 'none';
+            winModal.style.opacity = '1';
+            modalShown = false;
             
-            setTimeout(() => {
-                promoMessage.style.display = 'none';
-                promoMessage.style.opacity = '1';
-            }, 300);
-        }, 3000);
+            // Clean up confetti
+            const confettiContainer = winModal.querySelector('.win-confetti');
+            if (confettiContainer) {
+                confettiContainer.innerHTML = '';
+            }
+        }, 300);
+        
+        console.log('[MODAL] Win modal closed');
     }
     
     /**
-     * Обработка клика по кнопке "Забрать выигрыш"
+     * Handle the claim winnings button click
      */
     function handleClaimWinnings() {
-        console.log('[PROMO] Claim winnings button clicked');
+        console.log('[MODAL] Claim winnings button clicked');
         
-        // Получаем настройки порогов выигрыша
-        const thresholds = JSON.parse(localStorage.getItem(STORAGE_THRESHOLDS_KEY)) || [];
+        // Get thresholds from localStorage
+        const thresholds = JSON.parse(localStorage.getItem('fruitParadiseThresholds')) || [];
         
-        // Получаем текущий баланс в EUR
-        const currentBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
+        // Get current balance
+        const currentBalanceEUR = parseFloat(localStorage.getItem('fruitParadiseBalance')) || 0;
         
-        // Находим подходящий порог для редиректа
+        // Find appropriate threshold for redirect
         let targetUrl = null;
         let highestThresholdAmount = 0;
         
@@ -447,302 +277,155 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Скрываем модальное окно, если оно открыто
-        if (winModal) {
-            closeWinModal();
-        }
+        // Close modal if open
+        closeWinModal();
         
-        // Если найден подходящий порог, перенаправляем на указанный URL
+        // Navigate to appropriate URL
         if (targetUrl) {
-            console.log(`[PROMO] Redirecting to: ${targetUrl}`);
+            console.log(`[MODAL] Redirecting to: ${targetUrl}`);
             window.location.href = targetUrl;
         } else {
-            // Если порог не найден, перенаправляем на дефолтную страницу
-            console.log('[PROMO] No threshold matched, redirecting to default claim page');
+            // Default redirect
+            console.log('[MODAL] No threshold matched, redirecting to default');
             window.location.href = "/claim";
         }
     }
     
     /**
-     * Получение сообщений от iframe с игрой
+     * Initialize currency information
      */
-    function receiveMessageFromGame(event) {
-        // Проверяем источник сообщения, но не строго для упрощения разработки
-        const data = event.data;
-        
-        if (typeof data !== 'object' || !data.type) {
-            return;
-        }
-        
-        console.log('[PROMO] Received message from game:', data);
-        
-        if (data.type === 'UPDATE_BALANCE') {
-            // Получено сообщение об обновлении баланса от игры
-            const newBalance = parseFloat(data.balance) || 0;
-            localStorage.setItem(STORAGE_BALANCE_KEY, newBalance);
-            
-            // Обновляем отображение баланса
-            if (balanceElement) {
-                const balanceInUserCurrency = convertToUserCurrency(newBalance);
-                balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
-            }
-            
-            console.log(`[PROMO] Balance updated from game: ${newBalance} EUR`);
-            
-            // Проверяем, был ли сделан спин
-            if (data.spinMade) {
-                spinCounter++;
-                console.log(`[PROMO] Spin detected! Total spins: ${spinCounter}`);
-                
-                // Проверяем условия для показа модального окна с небольшой задержкой
-                setTimeout(() => {
-                    checkModalConditions(newBalance);
-                }, 500);
-            }
-        } else if (data.type === 'GAME_STARTED' || data.type === 'GAME_READY') {
-            // Игра загрузилась, отправляем текущий баланс
-            console.log('[PROMO] Game is ready, syncing balance');
-            syncBalanceWithGame();
-        }
-    }
-    
-    /**
-     * Проверка условий для показа модального окна
-     */
-    function checkModalConditions(balanceEUR) {
-        console.log('[PROMO] Checking modal conditions');
-        
-        // Конвертируем в валюту пользователя
-        const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
-        
-        console.log(`[PROMO] Balance: ${balanceInUserCurrency} ${userCurrency}, Threshold: ${MIN_BALANCE_FOR_MODAL}`);
-        console.log(`[PROMO] Spins: ${spinCounter}`);
-        
-        // Проверяем, достаточен ли баланс
-        if (balanceInUserCurrency >= MIN_BALANCE_FOR_MODAL) {
-            // Если баланс от промокода, ждем минимального количества спинов
-            const promoActivated = localStorage.getItem('fruitParadisePromoActivated');
-            const promoTimestamp = parseInt(localStorage.getItem('fruitParadisePromoTimestamp') || '0');
-            const currentTime = new Date().getTime();
-            const isRecentPromo = (currentTime - promoTimestamp) < 60000; // В течение последней минуты
-            
-            if (promoActivated === 'true' && isRecentPromo && spinCounter < MIN_SPINS_BEFORE_MODAL) {
-                console.log(`[PROMO] Recent promo balance, waiting for ${MIN_SPINS_BEFORE_MODAL} spins (current: ${spinCounter})`);
-                return;
-            }
-            
-            // Показываем модальное окно
-            console.log('[PROMO] All conditions met, showing win modal');
-            showWinModal(balanceEUR);
+    function initCurrencyInfo() {
+        // Try to get currency info from global currency handler if available
+        if (window.currencyHandler) {
+            userCurrency = window.currencyHandler.userCurrency;
+            exchangeRate = window.currencyHandler.exchangeRate;
         } else {
-            // Закрываем модальное окно, если оно открыто и баланс упал ниже порога
-            if (winModal && winModal.style.display === 'flex') {
-                console.log('[PROMO] Balance below threshold, closing modal');
-                closeWinModal();
+            // Fallback to localization manager or defaults
+            if (window.localizationManager) {
+                const countrySettings = CONFIG.countries[window.localizationManager.currentCountry] || CONFIG.default;
+                userCurrency = countrySettings.currency_name;
+                
+                // Set default exchange rates (simplified)
+                const rates = {
+                    'EUR': 1,
+                    'USD': 1.08,
+                    'GBP': 0.86,
+                    'CAD': 1.48,
+                    'AUD': 1.65,
+                    'AED': 3.97
+                };
+                exchangeRate = rates[userCurrency] || 1;
             }
         }
-    }
-    
-    /**
-     * Показывает модальное окно выигрыша
-     */
-    function showWinModal(balanceEUR) {
-        if (!winModal) {
-            console.warn('[PROMO] Win modal element not found');
-            return;
-        }
         
-        // Конвертируем в валюту пользователя
-        const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
-        
-        // Устанавливаем сумму в модальном окне
-        if (winModalAmount) {
-            winModalAmount.textContent = formatCurrency(balanceInUserCurrency, false);
-        }
-        
-        // Обновляем отображение валюты
+        // Update currency display in modal
         if (winModalCurrency) {
             winModalCurrency.textContent = userCurrency;
         }
         
-        // Показываем модальное окно
-        winModal.style.display = 'flex';
+        // Update currency display in balance
+        if (balanceCurrencyElement) {
+            balanceCurrencyElement.textContent = userCurrency;
+        }
         
-        // Создаем и запускаем анимацию конфетти
-        createConfetti();
-        
-        console.log('[PROMO] Win modal displayed with balance:', balanceInUserCurrency, userCurrency);
+        console.log(`[MODAL] Currency initialized: ${userCurrency}, rate: ${exchangeRate}`);
     }
     
     /**
-     * Закрывает модальное окно выигрыша
+     * Convert a EUR amount to user currency
      */
-    function closeWinModal() {
-        if (!winModal) return;
-        
-        // Добавляем анимацию закрытия
-        winModal.style.opacity = '0';
-        
-        // Скрываем модальное окно после анимации
-        setTimeout(() => {
-            winModal.style.display = 'none';
-            winModal.style.opacity = '1';
-            
-            // Очищаем конфетти
-            const confettiContainer = winModal.querySelector('.win-confetti');
-            if (confettiContainer) {
-                confettiContainer.innerHTML = '';
-            }
-        }, 300);
-        
-        console.log('[PROMO] Win modal closed');
+    function convertToUserCurrency(amountEUR) {
+        return amountEUR * exchangeRate;
     }
     
     /**
-     * Создает анимацию конфетти для модального окна выигрыша
+     * Format currency for display
+     */
+    function formatCurrency(amount, withSymbol = true) {
+        // Round to 2 decimal places
+        const formattedAmount = Math.round(amount * 100) / 100;
+        
+        // Don't use decimal places for JPY
+        if (userCurrency === 'JPY') {
+            return withSymbol ? `¥${Math.round(formattedAmount)}` : Math.round(formattedAmount).toString();
+        }
+        
+        // Get currency symbol
+        let symbol = '$';
+        if (userCurrency === 'EUR') symbol = '€';
+        else if (userCurrency === 'GBP') symbol = '£';
+        else if (userCurrency === 'AED') symbol = 'AED';
+        
+        // Format with 2 decimal places
+        return withSymbol 
+            ? `${symbol}${formattedAmount.toFixed(2)}`
+            : formattedAmount.toFixed(2);
+    }
+    
+    /**
+     * Create confetti animation inside modal
      */
     function createConfetti() {
         const confettiCount = 100;
         const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#2ecc71', '#9b59b6'];
         
-        // Находим контейнер для конфетти
+        // Find confetti container
         const confettiContainer = document.querySelector('.win-confetti');
         if (!confettiContainer) return;
         
-        // Очищаем предыдущие конфетти
+        // Clear previous confetti
         confettiContainer.innerHTML = '';
         
-        // Создаем новые конфетти
+        // Create new confetti elements
         for (let i = 0; i < confettiCount; i++) {
             const confetti = document.createElement('div');
-            confetti.className = 'confetti';
+            confetti.className = 'confetti-piece';
             confetti.style.left = `${Math.random() * 100}%`;
             confetti.style.width = `${Math.random() * 10 + 5}px`;
             confetti.style.height = `${Math.random() * 10 + 5}px`;
             confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
             confetti.style.opacity = Math.random() * 0.8 + 0.2;
             confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-            confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
+            confetti.style.animation = `fall ${Math.random() * 3 + 2}s linear infinite`;
             confetti.style.animationDelay = `${Math.random() * 2}s`;
             
             confettiContainer.appendChild(confetti);
         }
-    }
-    
-    /**
-     * Отправка текущего баланса в iframe с игрой
-     */
-    function syncBalanceWithGame() {
-        const gameFrame = document.getElementById('game-frame');
-        if (!gameFrame) {
-            console.warn('[PROMO] Game frame not found, cannot sync balance');
-            return;
-        }
         
-        // Получаем текущий баланс
-        const currentBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
-        
-        console.log(`[PROMO] Syncing balance with game: ${currentBalanceEUR} EUR`);
-        
-        try {
-            // Обновляем в localStorage (это основной способ для синхронизации)
-            localStorage.setItem(STORAGE_BALANCE_KEY, currentBalanceEUR.toString());
-            
-            // Отправляем сообщение в iframe
-            if (gameFrame.contentWindow) {
-                gameFrame.contentWindow.postMessage({
-                    type: 'SET_BALANCE',
-                    balance: currentBalanceEUR
-                }, '*');
-            }
-            
-            // Обновляем отображение в UI
-            if (balanceElement) {
-                const balanceInUserCurrency = convertToUserCurrency(currentBalanceEUR);
-                balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
-            }
-        } catch (e) {
-            console.error('[PROMO] Error syncing balance with game:', e);
-        }
-    }
-    
-    /**
-     * Перезагрузка iframe с игрой
-     */
-    function reloadGameFrame() {
-        const gameFrame = document.getElementById('game-frame');
-        if (!gameFrame) return;
-        
-        // Показываем временное сообщение о загрузке
-        const loadingOverlay = document.createElement('div');
-        loadingOverlay.style.position = 'absolute';
-        loadingOverlay.style.top = '0';
-        loadingOverlay.style.left = '0';
-        loadingOverlay.style.width = '100%';
-        loadingOverlay.style.height = '100%';
-        loadingOverlay.style.display = 'flex';
-        loadingOverlay.style.flexDirection = 'column';
-        loadingOverlay.style.alignItems = 'center';
-        loadingOverlay.style.justifyContent = 'center';
-        loadingOverlay.style.backgroundColor = 'rgba(7, 2, 15, 0.8)';
-        loadingOverlay.style.zIndex = '100';
-        loadingOverlay.style.borderRadius = 'var(--radius-lg)';
-        
-        const spinner = document.createElement('div');
-        spinner.className = 'spinner';
-        spinner.style.width = '50px';
-        spinner.style.height = '50px';
-        spinner.style.border = '4px solid rgba(212, 175, 55, 0.1)';
-        spinner.style.borderTopColor = 'var(--royal-gold)';
-        spinner.style.borderRadius = '50%';
-        spinner.style.animation = 'spin 1s linear infinite';
-        spinner.style.marginBottom = '15px';
-        
-        const loadingText = document.createElement('div');
-        loadingText.innerText = 'Обновление баланса...';
-        loadingText.style.color = 'var(--royal-gold)';
-        loadingText.style.fontSize = '18px';
-        loadingText.style.fontWeight = 'bold';
-        
-        loadingOverlay.appendChild(spinner);
-        loadingOverlay.appendChild(loadingText);
-        
-        const iframeWrapper = gameFrame.closest('.iframe-wrapper');
-        if (iframeWrapper) {
-            iframeWrapper.style.position = 'relative';
-            iframeWrapper.appendChild(loadingOverlay);
-        }
-        
-        // Перезагружаем iframe через небольшую задержку
-        setTimeout(() => {
-            const currentSrc = gameFrame.src;
-            const refreshParam = 'refresh=' + Date.now();
-            const separator = currentSrc.includes('?') ? '&' : '?';
-            gameFrame.src = currentSrc + separator + refreshParam;
-            
-            // Удаляем оверлей после полной загрузки iframe
-            gameFrame.onload = function() {
-                if (iframeWrapper && iframeWrapper.contains(loadingOverlay)) {
-                    iframeWrapper.removeChild(loadingOverlay);
+        // Add the CSS for animation if not already present
+        if (!document.getElementById('confetti-style')) {
+            const style = document.createElement('style');
+            style.id = 'confetti-style';
+            style.innerHTML = `
+                .confetti-piece {
+                    position: absolute;
+                    top: -20px;
+                    z-index: 1;
                 }
                 
-                // Синхронизируем баланс после загрузки
-                setTimeout(syncBalanceWithGame, 1000);
-            };
-        }, 500);
-        
-        console.log('[PROMO] Game frame reload initiated');
+                @keyframes fall {
+                    0% {
+                        top: -20px;
+                        transform: translateX(0) rotate(0deg);
+                    }
+                    100% {
+                        top: 100%;
+                        transform: translateX(${Math.random() > 0.5 ? '+' : '-'}${Math.random() * 100}px) rotate(${Math.random() * 360}deg);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
     }
+
+    // Initialize by checking current balance
+    const initialBalanceEUR = parseFloat(localStorage.getItem('fruitParadiseBalance')) || 0;
+    checkModalConditions(initialBalanceEUR);
     
-    // Инициализация системы промокодов при загрузке страницы
-    console.log('[PROMO] Initializing promo system');
-    initUI();
-    
-    // Экспорт функций для возможного использования из других скриптов
-    window.promoSystem = {
-        syncBalance: syncBalanceWithGame,
-        showWinModal: showWinModal,
-        closeWinModal: closeWinModal,
-        checkModalConditions: checkModalConditions
+    // Export functions for use by other scripts
+    window.winModalSystem = {
+        showWinModal,
+        closeWinModal,
+        checkModalConditions
     };
 });
