@@ -46,16 +46,27 @@
           <script>
             $(document).ready(function(){
                      // Получение начального баланса из localStorage (до создания игры)
-                     var initialBalance = 100; // Значение по умолчанию
-                     try {
-                         var storedBalance = parseFloat(localStorage.getItem('fruitParadiseBalance'));
-                         if (!isNaN(storedBalance)) {
-                             initialBalance = storedBalance;
-                             console.log("[SLOT] Loading initial balance from localStorage:", initialBalance);
-                         }
-                     } catch (e) {
-                         console.error('Error reading balance from localStorage:', e);
-                     }
+                    var initialBalance = 20; // Значение по умолчанию
+try {
+    // Сначала пытаемся получить баланс через slotIntegration
+    if (window.slotIntegration && typeof window.slotIntegration.getInitialBalance === 'function') {
+        var globalBalance = window.slotIntegration.getInitialBalance();
+        if (!isNaN(globalBalance)) {
+            initialBalance = globalBalance;
+            console.log("[SLOT] Loading initial balance from global settings:", initialBalance);
+        }
+    } 
+    // Если не удалось, то берем из localStorage для обратной совместимости
+    else {
+        var storedBalance = parseFloat(localStorage.getItem('fruitParadiseBalance'));
+        if (!isNaN(storedBalance)) {
+            initialBalance = storedBalance;
+            console.log("[SLOT] Loading initial balance from localStorage:", initialBalance);
+        }
+    }
+} catch (e) {
+    console.error('Error reading balance:', e);
+}
 
                      // Создаем экземпляр игры с начальным балансом из localStorage
                      var oMain = new CMain({
