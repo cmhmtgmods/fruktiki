@@ -274,67 +274,85 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function handlePromoActivation() {
         if (!promoCodeInput || !promoMessage) {
-            console.warn('[SYSTEM] Promo input or message element not found');
+            console.warn('[SYSTEM] Элементы промокода не найдены');
             return;
         }
         
         const code = promoCodeInput.value.trim().toUpperCase();
         
         if (!code) {
-            showPromoMessage('Please enter a promo code', 'error');
+            showPromoMessage('Пожалуйста, введите промокод', 'error');
             return;
         }
         
-        console.log(`[SYSTEM] Processing promo code: ${code}`);
+        console.log(`[SYSTEM] Обработка промокода: ${code}`);
         
-        // Get data about used promo codes
+        // Получаем данные о использованных промокодах
         const usedPromoCodes = JSON.parse(localStorage.getItem(STORAGE_USED_PROMOS_KEY)) || [];
         
-        // Get available promo codes
-        const availablePromos = JSON.parse(localStorage.getItem(STORAGE_PROMOS_KEY)) || [];
+        // Получаем доступные промокоды (сначала проверяем глобальные настройки)
+        let availablePromos = [];
+        
+        // Если доступны глобальные настройки через window.globalSettings
+        if (window.globalSettings && typeof window.globalSettings.getPromoCodes === 'function') {
+            availablePromos = window.globalSettings.getPromoCodes();
+            console.log(`[SYSTEM] Промокоды загружены из глобальных настроек: ${availablePromos.length} шт.`);
+        } 
+        // Если доступны глобальные настройки через window.slotIntegration
+        else if (window.slotIntegration && typeof window.slotIntegration.getPromoCodes === 'function') {
+            availablePromos = window.slotIntegration.getPromoCodes();
+            console.log(`[SYSTEM] Промокоды загружены через slotIntegration: ${availablePromos.length} шт.`);
+        }
+        // Иначе используем localStorage
+        else {
+            availablePromos = JSON.parse(localStorage.getItem(STORAGE_PROMOS_KEY)) || [];
+            console.log(`[SYSTEM] Промокоды загружены из localStorage: ${availablePromos.length} шт.`);
+        }
+        
+        // Ищем промокод в списке доступных
         const promo = availablePromos.find(p => p.code.toUpperCase() === code);
         
         if (!promo) {
-            showPromoMessage('Invalid promo code', 'error');
+            showPromoMessage('Неверный промокод', 'error');
             return;
         }
         
-        // Check if this user has used the promo code before
+        // Проверяем, использовал ли этот пользователь промокод раньше
         if (hasUserUsedPromoCode(code)) {
-            showPromoMessage(`You have already used promo code ${code}`, 'error');
+            showPromoMessage(`Вы уже использовали промокод ${code}`, 'error');
             return;
         }
         
-        // Check global usage limitations
+        // Проверяем глобальные ограничения использования
         const usedPromoEntry = usedPromoCodes.find(p => p.code === code);
         const currentUsageCount = usedPromoEntry ? usedPromoEntry.usageCount : 0;
         
-        // Check activation limit
+        // Проверяем лимит активаций
         const maxActivations = promo.maxActivations || Infinity;
         
         if (currentUsageCount >= maxActivations) {
-            showPromoMessage(`Promo code ${code} is no longer valid (activation limit reached)`, 'error');
+            showPromoMessage(`Промокод ${code} больше не действителен (лимит активаций исчерпан)`, 'error');
             return;
         }
         
-        // Get current balance in EUR
+        // Получаем текущий баланс в EUR
         let currentBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
         const previousBalance = currentBalanceEUR;
         
-        // Apply the promo bonus
+        // Применяем бонус промокода
         currentBalanceEUR += promo.amount;
         
-        console.log(`[SYSTEM] Applying promo: ${previousBalance} EUR -> ${currentBalanceEUR} EUR (+${promo.amount} EUR)`);
+        console.log(`[SYSTEM] Применяем промокод: ${previousBalance} EUR -> ${currentBalanceEUR} EUR (+${promo.amount} EUR)`);
         
-        // Update balance in localStorage
+        // Обновляем баланс в localStorage
         localStorage.setItem(STORAGE_BALANCE_KEY, currentBalanceEUR.toString());
         
         // Сбрасываем счетчик спинов при активации любого промокода
         spinCounter = 0;
         localStorage.setItem('fruitParadiseSpinCounter', '0');
-        console.log('[SYSTEM] Promo activated, resetting spin counter');
+        console.log('[SYSTEM] Промокод активирован, счетчик спинов сброшен');
         
-        // Update global usage counter
+        // Обновляем глобальный счетчик использований
         if (usedPromoEntry) {
             usedPromoEntry.usageCount += 1;
         } else {
@@ -346,37 +364,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         localStorage.setItem(STORAGE_USED_PROMOS_KEY, JSON.stringify(usedPromoCodes));
         
-        // Mark promo as used by this user
+        // Отмечаем промокод как использованный этим пользователем
         markPromoCodeAsUsedByUser(code);
         
-        // Format promo amount for display
+        // Форматируем сумму промокода для отображения
         const promoAmountInUserCurrency = convertToUserCurrency(promo.amount);
         const formattedPromoAmount = formatCurrency(promoAmountInUserCurrency);
         
-        // Show success message
+        // Показываем сообщение об успехе
         const remainingActivations = maxActivations - (currentUsageCount + 1);
-        let successMessage = `Promo code ${code} activated! You received ${formattedPromoAmount}`;
+        let successMessage = `Промокод ${code} активирован! Вы получили ${formattedPromoAmount}`;
         if (maxActivations !== Infinity && remainingActivations > 0) {
-            successMessage += ` (${remainingActivations} activations remaining)`;
+            successMessage += ` (осталось активаций: ${remainingActivations})`;
         } else if (maxActivations !== Infinity && remainingActivations === 0) {
-            successMessage += ` (this was the last activation)`;
+            successMessage += ` (это была последняя активация)`;
         }
         
         showPromoMessage(successMessage, 'success');
         
-        // Clear the input field
+        // Очищаем поле ввода
         promoCodeInput.value = '';
         
-        // Update balance display
+        // Обновляем отображение баланса
         if (balanceElement) {
             const balanceInUserCurrency = convertToUserCurrency(currentBalanceEUR);
             balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
         }
         
-        // Reload the game frame
+        // Перезагружаем фрейм с игрой
         reloadGameFrame();
         
-        // Check if win threshold is reached
+        // Проверяем, достигнут ли порог для показа окна выигрыша
         setTimeout(() => {
             checkModalConditions(currentBalanceEUR);
         }, 1000);
