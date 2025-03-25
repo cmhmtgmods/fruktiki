@@ -38,24 +38,21 @@
     /**
      * Функция для получения начального баланса
      */
-    function getInitialBalance() {
-        // Сначала пытаемся получить из глобальных настроек через cookie
-        const cookieValue = getCookie(INITIAL_BALANCE_KEY);
-        if (cookieValue !== null && !isNaN(parseFloat(cookieValue))) {
-            console.log(`[SLOT] Получен начальный баланс из глобальных настроек: ${cookieValue}`);
-            return parseFloat(cookieValue);
-        }
-        
-        // Затем пытаемся получить из localStorage
-        const localValue = localStorage.getItem(LOCAL_INIT_BALANCE_KEY);
-        if (localValue !== null && !isNaN(parseFloat(localValue))) {
-            console.log(`[SLOT] Получен начальный баланс из localStorage: ${localValue}`);
-            return parseFloat(localValue);
-        }
-        
-        console.log(`[SLOT] Используем начальный баланс по умолчанию: ${DEFAULT_INITIAL_BALANCE}`);
-        return DEFAULT_INITIAL_BALANCE;
+   function getInitialBalance() {
+    // УДАЛЯЕМ localStorage
+    localStorage.removeItem('fruitParadiseBalance');
+    
+    // Безусловно берем значение из cookie
+    const cookieValue = getCookie(INITIAL_BALANCE_KEY);
+    
+    if (cookieValue !== null && !isNaN(parseFloat(cookieValue))) {
+        console.log(`[SLOT] ПРИНУДИТЕЛЬНО устанавливаем баланс из cookie: ${cookieValue}`);
+        return parseFloat(cookieValue);
     }
+    
+    // Если cookie нет, используем дефолтное значение
+    return DEFAULT_INITIAL_BALANCE;
+}
     
     /**
      * Функция для получения списка промокодов
