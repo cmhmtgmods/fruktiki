@@ -226,7 +226,8 @@
          */
         updateBalanceDisplay() {
             // Convert to user currency
-            const balanceInUserCurrency = this.convertToUserCurrency(this.balanceEUR);
+            const balanceInUserCurrency = this.balanceEUR;
+
             
             // Get balance display element
             const balanceElement = document.getElementById('balance-amount');
