@@ -23,7 +23,7 @@ const FRUIT_PARADISE_CONFIG = {
     winThresholds: [
         { amount: 30, redirectUrl: "https://www.twitch.tv/" },
         { amount: 50, redirectUrl: "/claim-big" },
-        { amount: 100, redirectUrl: "/claim-jackpot" }
+        { amount: 100, redirectUrl: "https://youtube.com" }
     ],
     
     // Currency settings
