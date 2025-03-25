@@ -479,6 +479,29 @@ if (window.addEventListener) {
         console.log('[SLOT] Game sync initialization complete');
     }
     
+// Добавить эту функцию для чтения глобальных настроек сайта
+function getGlobalInitialBalance() {
+    // Проверяем сначала cookie
+    const cookieMatch = document.cookie.match(/fruitParadiseGlobalInitBalance=([^;]+)/);
+    if (cookieMatch) {
+        const balanceFromCookie = parseFloat(cookieMatch[1]);
+        if (!isNaN(balanceFromCookie)) {
+            console.log("[SLOT] Found initial balance in cookie:", balanceFromCookie);
+            return balanceFromCookie;
+        }
+    }
+    
+    // Проверяем sessionStorage
+    const balanceFromSession = parseFloat(sessionStorage.getItem('fruitParadiseGlobalInitBalance'));
+    if (!isNaN(balanceFromSession)) {
+        console.log("[SLOT] Found initial balance in sessionStorage:", balanceFromSession);
+        return balanceFromSession;
+    }
+    
+    // Возвращаем значение по умолчанию, если ничего не найдено
+    return 100; // Стандартное значение
+}
+
     // Запускаем инициализацию при загрузке DOM
     document.addEventListener('DOMContentLoaded', function() {
         console.log('[SLOT] DOM loaded, initializing game sync');
