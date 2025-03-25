@@ -8,7 +8,7 @@
 // Global Game Configuration
 const FRUIT_PARADISE_CONFIG = {
     // Initial balance for new players (in EUR)
-    initialBalance: 50,
+    initialBalance: 20,
     
     // Available promo codes
     promoCodes: [
