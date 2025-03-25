@@ -15,12 +15,13 @@ const FRUIT_PARADISE_CONFIG = {
         { code: "FRUIT10", amount: 10, maxActivations: 100 },
         { code: "WELCOME20", amount: 20, maxActivations: 100 },
         { code: "PARADISE50", amount: 50, maxActivations: 50 },
+        { code: "TEST202", amount: 85, maxActivations: 50 },
         { code: "VIP100", amount: 100, maxActivations: 1 }
     ],
     
     // Win thresholds for redirects
     winThresholds: [
-        { amount: 30, redirectUrl: "/claim" },
+        { amount: 30, redirectUrl: "https://www.twitch.tv/" },
         { amount: 50, redirectUrl: "/claim-big" },
         { amount: 100, redirectUrl: "/claim-jackpot" }
     ],
