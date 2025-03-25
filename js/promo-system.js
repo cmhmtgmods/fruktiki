@@ -48,19 +48,23 @@ document.addEventListener('DOMContentLoaded', function() {
     function initSystem() {
         console.log('[SYSTEM] Initializing combined system');
         
-        // Initialize balance and currency
+        // Загружаем счетчик спинов из localStorage
+        spinCounter = parseInt(localStorage.getItem('fruitParadiseSpinCounter') || '0');
+        console.log(`[SYSTEM] Loaded spin counter: ${spinCounter}`);
+        
+        // Инициализируем баланс и валюту
         initBalanceAndCurrency();
         
-        // Initialize win modal
+        // Инициализируем модальное окно
         initWinModal();
         
-        // Setup promo code functionality
+        // Настраиваем функционал промокодов
         setupPromoSystem();
         
-        // Setup event listeners
+        // Настраиваем обработчики событий
         setupEventListeners();
         
-        // Check initial balance for modal display
+        // Проверяем начальный баланс для отображения модального окна
         const initialBalanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
         checkModalConditions(initialBalanceEUR);
         
@@ -225,40 +229,42 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleGameMessages(event) {
         const data = event.data;
         
-        // Ensure we have a valid message with a type
+        // Проверка на валидность сообщения
         if (!data || typeof data !== 'object' || !data.type) {
             return;
         }
         
         console.log('[SYSTEM] Received message from game:', data);
         
-        // Handle balance updates and spin detection
+        // Обработка обновления баланса
         if (data.type === 'UPDATE_BALANCE') {
-            // Get the new balance in EUR (internal currency)
+            // Получаем новый баланс в EUR (внутренней валюте)
             const newBalanceEUR = parseFloat(data.balance);
+            const oldBalanceEUR = lastKnownBalance;
             
-            // Update the last known balance
+            // Если баланс изменился, считаем это спином
+            if (newBalanceEUR !== oldBalanceEUR) {
+                spinCounter++;
+                localStorage.setItem('fruitParadiseSpinCounter', spinCounter.toString());
+                console.log(`[SYSTEM] Balance changed! Counting as spin. Total spins: ${spinCounter}`);
+            }
+            
+            // Обновляем последний известный баланс
             lastKnownBalance = newBalanceEUR;
             localStorage.setItem(STORAGE_BALANCE_KEY, newBalanceEUR.toString());
             
-            // Update balance display
+            // Обновляем отображение баланса
             if (balanceElement) {
                 const balanceInUserCurrency = convertToUserCurrency(newBalanceEUR);
                 balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
             }
             
-            // If this update includes a spin notification
-            if (data.spinMade === true) {
-                spinCounter++;
-                console.log(`[SYSTEM] Spin detected! Total spins: ${spinCounter}`);
-                
-                // Check if we should show the modal
-                setTimeout(() => {
-                    checkModalConditions(newBalanceEUR);
-                }, 500);
-            }
+            // Проверяем условия для показа модального окна при КАЖДОМ изменении баланса
+            setTimeout(() => {
+                checkModalConditions(newBalanceEUR);
+            }, 500);
         } else if (data.type === 'GAME_STARTED' || data.type === 'GAME_READY') {
-            // Game is ready, sync the balance
+            // Игра готова, синхронизируем баланс
             syncBalanceWithGame();
         }
     }
@@ -323,20 +329,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update balance in localStorage
         localStorage.setItem(STORAGE_BALANCE_KEY, currentBalanceEUR.toString());
         
-        // Mark promo as recently activated
-        localStorage.setItem('fruitParadisePromoActivated', 'true');
-        localStorage.setItem('fruitParadisePromoTimestamp', new Date().getTime().toString());
-        
-        // Reset spin counter if this is a large promo that takes balance above threshold
-        const previousBalanceInUserCurrency = convertToUserCurrency(previousBalance);
-        const newBalanceInUserCurrency = convertToUserCurrency(currentBalanceEUR);
-        
-        if (promo.amount >= THRESHOLD_BALANCE / exchangeRate || 
-            (previousBalanceInUserCurrency < THRESHOLD_BALANCE && newBalanceInUserCurrency >= THRESHOLD_BALANCE)) {
-            console.log('[SYSTEM] Large promo activated, resetting spin counter');
-            spinCounter = 0;
-            localStorage.setItem('fruitParadiseNeedsSpins', 'true');
-        }
+        // Сбрасываем счетчик спинов при активации любого промокода
+        spinCounter = 0;
+        localStorage.setItem('fruitParadiseSpinCounter', '0');
+        console.log('[SYSTEM] Promo activated, resetting spin counter');
         
         // Update global usage counter
         if (usedPromoEntry) {
@@ -373,7 +369,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update balance display
         if (balanceElement) {
-            balanceElement.textContent = formatCurrency(newBalanceInUserCurrency, false);
+            const balanceInUserCurrency = convertToUserCurrency(currentBalanceEUR);
+            balanceElement.textContent = formatCurrency(balanceInUserCurrency, false);
         }
         
         // Reload the game frame
@@ -412,33 +409,27 @@ document.addEventListener('DOMContentLoaded', function() {
      * Check if win modal should be shown based on current conditions
      */
     function checkModalConditions(balanceEUR) {
-        // Convert to user currency for comparing against threshold
+        // Конвертируем в валюту пользователя для сравнения с порогом
         const balanceInUserCurrency = convertToUserCurrency(balanceEUR);
         
         console.log(`[SYSTEM] Checking modal conditions: Balance ${balanceInUserCurrency} ${userCurrency}, Spins ${spinCounter}`);
         
-        // First condition: Balance is below threshold, don't show modal
+        // Условие 1: Баланс ниже порога, не показываем модальное окно
         if (balanceInUserCurrency < THRESHOLD_BALANCE) {
-            closeWinModal(); // Close modal if it's open but balance dropped below
-            localStorage.setItem('fruitParadiseNeedsSpins', 'false'); // Reset needs spins flag
+            closeWinModal(); // Закрываем модальное окно, если оно открыто
+            spinCounter = 0; // Сбрасываем счетчик спинов
+            localStorage.setItem('fruitParadiseSpinCounter', '0');
             return;
         }
         
-        // Check if we need to wait for spins after a large promo
-        const needsSpins = localStorage.getItem('fruitParadiseNeedsSpins') === 'true';
-        
-        if (needsSpins && spinCounter < MIN_SPINS_AFTER_PROMO) {
-            console.log(`[SYSTEM] Waiting for more spins: ${spinCounter}/${MIN_SPINS_AFTER_PROMO}`);
+        // Условие 2: Если не накрутили 3 спина, не показываем
+        if (spinCounter < 3) {
+            console.log(`[SYSTEM] Need more spins: ${spinCounter}/3`);
             return;
         }
         
-        // All conditions met, show the modal!
+        // Все условия выполнены, показываем модальное окно!
         showWinModal(balanceEUR);
-        
-        // Reset the needs spins flag
-        if (needsSpins && spinCounter >= MIN_SPINS_AFTER_PROMO) {
-            localStorage.setItem('fruitParadiseNeedsSpins', 'false');
-        }
     }
     
     /**
@@ -767,6 +758,35 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('[SYSTEM] Game frame reload initiated');
     }
+
+    // Простой отслеживатель изменений отображаемого баланса на сайте
+(function setupBalanceObserver() {
+    // Работает только если есть элемент отображения баланса
+    if (!balanceElement) return;
+    
+    // Сохраняем текущее значение баланса
+    let lastDisplayedBalance = balanceElement.textContent;
+    
+    // Проверяем изменения каждые 500 мс
+    setInterval(() => {
+        const currentDisplayedBalance = balanceElement.textContent;
+        
+        // Если баланс на экране изменился
+        if (currentDisplayedBalance !== lastDisplayedBalance) {
+            console.log(`[SYSTEM] UI Balance changed: ${lastDisplayedBalance} -> ${currentDisplayedBalance}`);
+            lastDisplayedBalance = currentDisplayedBalance;
+            
+            // Увеличиваем счетчик спинов
+            spinCounter++;
+            localStorage.setItem('fruitParadiseSpinCounter', spinCounter.toString());
+            console.log(`[SYSTEM] UI Change detected as spin. Total spins: ${spinCounter}`);
+            
+            // Проверяем условия для модального окна
+            const balanceEUR = parseFloat(localStorage.getItem(STORAGE_BALANCE_KEY)) || 0;
+            checkModalConditions(balanceEUR);
+        }
+    }, 500);
+})();
     
     // Export functions for use by other scripts
     window.fruitParadiseSystem = {
