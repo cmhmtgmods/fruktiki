@@ -1,5 +1,6 @@
 // Конфигурация локализации и валют
-localStorage.clear();
+
+
 const CONFIG = {
     // Поддерживаемые страны и соответствующие языки/валюты
     countries: {
@@ -11,9 +12,28 @@ const CONFIG = {
         'GB': { lang: 'en', currency: '£', currency_name: 'GBP' },
         'AE': { lang: 'ar', currency: 'AED', currency_name: 'AED' }
     },
+
+    
     // Языковые ресурсы
     localization: {
         'en': {
+            'free_spins': 'GET 500 FREE SPINS',
+            'balance_label': 'Balance:',
+    'claim_winnings': 'CLAIM WINNINGS',
+    'promo_placeholder': 'Enter promo code',
+    'activate_promo': 'Activate',
+    'win_congratulations': 'CONGRATULATIONS!',
+    'win_amount_label': 'Your winnings:',
+    'win_message': 'You can claim your prize by clicking the button below',
+    'win_claim_button': 'CLAIM WINNINGS',
+            'balance_label': 'Balance:',
+'claim_winnings': 'CLAIM WINNINGS',
+'promo_placeholder': 'Enter promo code',
+'activate_promo': 'Activate',
+            'win_congratulations': 'CONGRATULATIONS!',
+            'win_amount_label': 'Your winnings:',
+            'win_message': 'You can claim your prize by clicking the button below',
+            'win_claim_button': 'CLAIM WINNINGS',
             // Меню и общие элементы
             'menu_home': 'Home',
             'menu_slots': 'Slots',
@@ -42,6 +62,23 @@ const CONFIG = {
             'country_selector': 'Country:'
         },
         'de': {
+            'free_spins': '500 FREISPIELE ERHALTEN',
+            'balance_label': 'Guthaben:',
+            'claim_winnings': 'GEWINN ABHOLEN',
+            'promo_placeholder': 'Promocode eingeben',
+            'activate_promo': 'Aktivieren',
+            'win_congratulations': 'GLÜCKWUNSCH!',
+            'win_amount_label': 'Ihr Gewinn:',
+            'win_message': 'Sie können Ihren Gewinn einfordern, indem Sie auf die Schaltfläche unten klicken',
+            'win_claim_button': 'GEWINN ABHOLEN',
+            'balance_label': 'Guthaben:',
+'claim_winnings': 'GEWINN ABHOLEN',
+'promo_placeholder': 'Promocode eingeben',
+'activate_promo': 'Aktivieren',
+            'win_congratulations': 'GLÜCKWUNSCH!',
+'win_amount_label': 'Ihr Gewinn:',
+'win_message': 'Sie können Ihren Gewinn einfordern, indem Sie auf die Schaltfläche unten klicken',
+'win_claim_button': 'GEWINN ABHOLEN',
             // Меню и общие элементы
             'menu_home': 'Startseite',
             'menu_slots': 'Spielautomaten',
@@ -70,6 +107,24 @@ const CONFIG = {
             'country_selector': 'Land:'
         },
         'fr': {
+            'free_spins': 'OBTENEZ 500 TOURS GRATUITS',
+            'balance_label': 'Solde:',
+            'claim_winnings': 'RÉCLAMER LES GAINS',
+            'promo_placeholder': 'Entrez le code promo',
+            'activate_promo': 'Activer',
+            'win_congratulations': 'FÉLICITATIONS!',
+            'win_amount_label': 'Vos gains:',
+            'win_message': 'Vous pouvez réclamer votre prix en cliquant sur le bouton ci-dessous',
+            'win_claim_button': 'RÉCLAMER LES GAINS',
+            'balance_label': 'Solde:',
+'claim_winnings': 'RÉCLAMER LES GAINS',
+'promo_placeholder': 'Entrez le code promo',
+'activate_promo': 'Activer',
+
+            'win_congratulations': 'FÉLICITATIONS!',
+'win_amount_label': 'Vos gains:',
+'win_message': 'Vous pouvez réclamer votre prix en cliquant sur le bouton ci-dessous',
+'win_claim_button': 'RÉCLAMER LES GAINS',
             // Меню и общие элементы
             'menu_home': 'Accueil',
             'menu_slots': 'Machines à sous',
@@ -98,6 +153,23 @@ const CONFIG = {
             'country_selector': 'Pays:'
         },
         'ar': {
+            'free_spins': 'احصل على 500 لفة مجانية',
+            'balance_label': 'الرصيد:',
+            'claim_winnings': 'استلام المكسب',
+            'promo_placeholder': 'أدخل رمز العرض الترويجي',
+            'activate_promo': 'تفعيل',
+            'win_congratulations': 'تهانينا!',
+            'win_amount_label': 'مكسبك:',
+            'win_message': 'يمكنك المطالبة بجائزتك بالنقر على الزر أدناه',
+            'win_claim_button': 'استلام المكسب',
+            'balance_label': 'الرصيد:',
+'claim_winnings': 'استلام المكسب',
+'promo_placeholder': 'أدخل رمز العرض الترويجي',
+'activate_promo': 'تفعيل',
+            'win_congratulations': 'تهانينا!',
+'win_amount_label': 'مكسبك:',
+'win_message': 'يمكنك المطالبة بجائزتك بالنقر على الزر أدناه',
+'win_claim_button': 'استلام المكسب',
             // Меню и общие элементы - обратите внимание на то, что текст на арабском отображается справа налево
             'menu_home': 'الرئيسية',
             'menu_slots': 'آلات القمار',
@@ -189,7 +261,21 @@ class LocalizationManager {
         
         // Применяем локализацию к странице
         this.applyLocalization();
-        
+        if (window.currencyHandler) {
+            // Устанавливаем правильную валюту на основе выбранной страны
+            const countrySettings = this.config.countries[countryCode];
+            if (countrySettings) {
+                window.currencyHandler.userCurrency = countrySettings.currency_name;
+                window.currencyHandler.currencySymbol = countrySettings.currency;
+                
+                // Сохраняем в localStorage
+                localStorage.setItem('fruitParadiseCurrency', countrySettings.currency_name);
+                
+                // Обновляем отображение
+                window.currencyHandler.updateCurrencyDisplay();
+                console.log("[DEBUG] Forced currency update to:", countrySettings.currency_name);
+            }
+        }
         // Устанавливаем направление текста для арабского языка
         if (this.currentLanguage === 'ar') {
             document.documentElement.setAttribute('dir', 'rtl');
@@ -227,7 +313,11 @@ class LocalizationManager {
             if (translations[key]) {
                 // Для элементов ввода устанавливаем значение, для остальных textContent
                 if (element.tagName === 'INPUT') {
-                    element.value = translations[key];
+                    if (element.hasAttribute('placeholder')) {
+                        element.placeholder = translations[key];
+                    } else {
+                        element.value = translations[key];
+                    }
                 } else {
                     element.textContent = translations[key];
                 }
@@ -278,7 +368,7 @@ class LocalizationManager {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: transparent;
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
@@ -555,6 +645,81 @@ function addLanguageSelectorToggle() {
     
     // Добавляем кнопку на страницу
     document.body.appendChild(toggleButton);
+}
+
+/**
+ * ОБРАБОТЧИК МОДАЛЬНОГО ОКНА В ОСНОВНОЙ СТРАНИЦЕ
+ * Добавьте этот код в конец файла script.js
+ */
+
+// Обработчик для показа существующего модального окна
+function handleWinModalMessages() {
+    // Слушаем сообщения от iframe
+    window.addEventListener('message', function(event) {
+        const data = event.data;
+        
+        // Проверяем тип сообщения
+        if (typeof data === 'object' && data.type === 'SHOW_WIN_MODAL') {
+            console.log('Получено сообщение для показа модального окна:', data.amount);
+            
+            // Находим элементы модального окна
+            const winModal = document.getElementById('win-modal');
+            const winAmount = document.getElementById('win-modal-amount');
+            const winCurrency = document.getElementById('win-modal-currency');
+            
+            if (!winModal || !winAmount || !winCurrency) {
+                console.error('Элементы модального окна не найдены');
+                return;
+            }
+            
+            // Получаем сумму выигрыша и форматируем её с учетом валюты
+            let formattedAmount = data.amount;
+            let currencySymbol = '$'; // Значение по умолчанию
+            
+            // Если есть обработчик валюты, используем его для форматирования
+            if (window.currencyHandler) {
+                const convertedAmount = window.currencyHandler.convertToUserCurrency(data.amount);
+                formattedAmount = window.currencyHandler.formatCurrency(convertedAmount, false);
+                currencySymbol = window.currencyHandler.userCurrency || '$';
+            }
+            
+            // Устанавливаем значения в модальном окне
+            winAmount.textContent = formattedAmount;
+            winCurrency.textContent = currencySymbol;
+            
+            // Настраиваем кнопку забрать выигрыш
+            const claimButton = document.getElementById('win-modal-claim-btn');
+            if (claimButton) {
+                // Удаляем предыдущие обработчики
+                const newClaimButton = claimButton.cloneNode(true);
+                claimButton.parentNode.replaceChild(newClaimButton, claimButton);
+                
+                // Добавляем новый обработчик
+                newClaimButton.addEventListener('click', function() {
+                    // Скрываем модальное окно
+                    winModal.style.display = 'none';
+                    
+                    // Если есть обработчик получения выигрыша, вызываем его
+                    if (window.currencyHandler && typeof window.currencyHandler.handleClaimWinnings === 'function') {
+                        window.currencyHandler.handleClaimWinnings();
+                    }
+                });
+            }
+            
+            // Показываем модальное окно
+            winModal.style.display = 'flex';
+        }
+    });
+    
+    console.log('Обработчик модального окна выигрыша инициализирован');
+}
+
+// Инициализируем обработчик при загрузке DOM
+document.addEventListener('DOMContentLoaded', handleWinModalMessages);
+
+// Если DOM уже загружен, инициализируем немедленно
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+    handleWinModalMessages();
 }
 
 // Инициализация всех компонентов при загрузке документа
