@@ -47,6 +47,19 @@
                 
                 // Update currency display
                 this.updateCurrencyDisplay();
+        
+                // Sync with language selector immediately
+                setTimeout(() => this.syncLanguageSelector(), 500);
+                
+                // Listen for language selector changes
+                document.addEventListener('DOMContentLoaded', () => {
+                    const countrySelect = document.getElementById('country-select');
+                    if (countrySelect) {
+                        countrySelect.addEventListener('change', () => {
+                            setTimeout(() => this.syncLanguageSelector(), 100);
+                        });
+                    }
+                });
                 
             } catch (error) {
                 console.error('[CURRENCY] Error initializing currency:', error);
@@ -193,31 +206,29 @@
         handleGameMessage(event) {
             const data = event.data;
             
-            // Check if message is from our game
+            // Проверка сообщения
             if (typeof data !== 'object' || !data.type) return;
             
             console.log('[CURRENCY] Received message from game:', data);
             
             switch (data.type) {
-                case 'GAME_STARTED':
-                    // Game loaded and ready to receive commands
-                    console.log('[CURRENCY] Game started, syncing balance...');
-                    this.syncBalanceToGame();
-                    break;
-                    
+                // ... существующий код
+                
                 case 'UPDATE_BALANCE':
-                    // New balance received from game (in EUR)
-                    console.log('[CURRENCY] Received balance update from game:', data.balance);
-                    
-                    // Update internal balance in EUR
+                    // Обновление баланса
+                    const oldBalance = this.balanceEUR;
                     this.balanceEUR = data.balance;
                     
-                    // Save to localStorage
+                    // Сохраняем в localStorage
                     window.SETTINGS_READER.saveCurrentBalance(this.balanceEUR);
                     
-                    // Update display
+                    // Обновляем отображение
                     this.updateBalanceDisplay();
+                    
+                    // Логируем изменение баланса
+                    console.log(`[CURRENCY] Balance change: ${oldBalance} -> ${this.balanceEUR}`);
                     break;
+                    trackBalanceChangeAsSpins(oldBalance, newBalance);
             }
         }
         
@@ -237,7 +248,73 @@
             
             console.log(`[CURRENCY] Balance updated: ${this.balanceEUR} EUR = ${balanceInUserCurrency} ${this.userCurrency}`);
         }
+        syncLanguageSelector() {
+            const countrySelect = document.getElementById('country-select');
+            if (!countrySelect) return;
+            
+            // Find the current display option
+            const selectedCountry = localStorage.getItem('selectedCountry') || 'US';
+            const currentOption = Array.from(countrySelect.options).find(
+                option => option.value === selectedCountry
+            );
+            
+            if (currentOption) {
+                // Extract currency from the option text (format: "US (EN, $)")
+                const optionText = currentOption.text;
+                const currencyMatch = optionText.match(/\(.*?,\s*([^)]*)\)/);
+                
+                if (currencyMatch && currencyMatch[1]) {
+                    const currencySymbol = currencyMatch[1].trim();
+                    
+                    // Map currency symbols to actual currency codes
+                    const currencyMap = {
+                        '$': 'USD',
+                        'C$': 'CAD',
+                        'A$': 'AUD',
+                        '€': 'EUR',
+                        '£': 'GBP',
+                        'AED': 'AED'
+                    };
+                    
+                    // Get the appropriate currency code
+                    this.userCurrency = currencyMap[currencySymbol] || currencySymbol;
+                    this.currencySymbol = currencySymbol;
+                    
+                    console.log(`[CURRENCY] Synchronized currency from language selector: ${this.userCurrency} (${this.currencySymbol})`);
+                    
+                    // Update currency elements
+                    const currencyElements = document.querySelectorAll('.balance-currency');
+                    currencyElements.forEach(el => {
+                        el.textContent = this.userCurrency;
+                    });
+                    
+                    // Save to localStorage for consistency
+                    localStorage.setItem('fruitParadiseCurrency', this.userCurrency);
+                    
+                    // Update game iframe with currency info
+                    this.syncCurrencyWithGame();
+                }
+            }
+        }
+        // Add this method to sync currency with the game
+syncCurrencyWithGame() {
+    const gameFrame = document.getElementById('game-frame');
+    if (!gameFrame || !gameFrame.contentWindow) {
+        console.warn('[CURRENCY] Game frame not ready for currency sync');
+        return;
+    }
+    
+    // Send currency info to game iframe
+    gameFrame.contentWindow.postMessage({
+        type: 'SET_CURRENCY',
+        currency: this.userCurrency,
+        symbol: this.currencySymbol
+    }, '*');
+    
+    console.log(`[CURRENCY] Currency info sent to game: ${this.userCurrency} (${this.currencySymbol})`);
+}
         
+
         /**
          * Synchronize current balance with game (send to iframe)
          */
@@ -324,6 +401,60 @@
             this.syncBalanceToGame();
         }
     }
+
+
+/**
+ * Отслеживает изменения баланса и увеличивает счетчик спинов
+ * @param {number} oldBalance - Старый баланс
+ * @param {number} newBalance - Новый баланс
+ */
+function trackBalanceChangeAsSpins(oldBalance, newBalance) {
+    // Если разница существенная, считаем как спин
+    if (Math.abs(oldBalance - newBalance) > 0.01) {
+        // Читаем текущее значение счетчика
+        const SPIN_COUNTER_KEY = 'fruitParadiseSpinCounter';
+        let spinCount = parseInt(localStorage.getItem(SPIN_COUNTER_KEY) || '0');
+        
+        // Увеличиваем
+        spinCount++;
+        
+        // Сохраняем обратно
+        localStorage.setItem(SPIN_COUNTER_KEY, spinCount.toString());
+        
+        console.log(`[SPIN TRACKER] Зарегистрирован спин! Баланс: ${oldBalance} → ${newBalance}, Спинов: ${spinCount}`);
+        
+        // Проверяем условия для показа модального окна
+        checkWinModalConditions(newBalance);
+    }
+}
+
+/**
+ * Проверяет условия для показа модального окна выигрыша
+ * @param {number} balance - Текущий баланс
+ */
+function checkWinModalConditions(balance) {
+    // Получаем настройки
+    const MIN_BALANCE = 100;
+    const MIN_SPINS = 3;
+    
+    // Получаем счетчик спинов
+    const SPIN_COUNTER_KEY = 'fruitParadiseSpinCounter';
+    const spinCount = parseInt(localStorage.getItem(SPIN_COUNTER_KEY) || '0');
+    
+    console.log(`[SPIN TRACKER] Проверка условий: Баланс ${balance}, Спины ${spinCount}`);
+    
+    // Проверяем условия
+    if (balance >= MIN_BALANCE && spinCount >= MIN_SPINS) {
+        console.log(`[SPIN TRACKER] ВСЕ УСЛОВИЯ ВЫПОЛНЕНЫ! Показываем модальное окно!`);
+        
+        // Если есть доступ к modalManager или promoSystem, используем его
+        if (window.modalManager && window.modalManager.showWinModal) {
+            window.modalManager.showWinModal(balance);
+        } else if (window.promoSystem && window.promoSystem.showWinModal) {
+            window.promoSystem.showWinModal(balance);
+        }
+    }
+}
 
     // Create and export instance for global use
     window.currencyHandler = new CurrencyHandler();
