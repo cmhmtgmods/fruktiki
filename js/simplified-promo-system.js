@@ -5,7 +5,70 @@
  * It uses the central configuration from config.js.
  */
 (function() {
+
+    function createSpinTracker() {
+        console.log('[PROMO] Устанавливаем новую систему отслеживания спинов');
+        
+        // Базовые переменные
+        const SPIN_COUNTER_KEY = 'fruitParadiseSpinCounter';
+        let lastKnownBalance = parseFloat(localStorage.getItem('fruitParadiseBalance') || '0');
+        
+        // Инициализируем счетчик, если нужно
+        if (!localStorage.getItem(SPIN_COUNTER_KEY)) {
+            localStorage.setItem(SPIN_COUNTER_KEY, '0');
+        }
+        
+        // Периодически проверяем изменение баланса
+        setInterval(() => {
+            const currentBalance = parseFloat(localStorage.getItem('fruitParadiseBalance') || '0');
+            
+            // Если баланс изменился хоть немного, считаем это спином
+            if (Math.abs(currentBalance - lastKnownBalance) > 0.01) {
+                // Получаем текущий счетчик
+                let counter = parseInt(localStorage.getItem(SPIN_COUNTER_KEY) || '0');
+                
+                // Увеличиваем счетчик
+                counter++;
+                
+                // Сохраняем
+                localStorage.setItem(SPIN_COUNTER_KEY, counter.toString());
+                
+                console.log(`[SPIN TRACKER] Обнаружен спин! Баланс: ${lastKnownBalance} → ${currentBalance}, Спинов: ${counter}`);
+                
+                // Обновляем последний известный баланс
+                lastKnownBalance = currentBalance;
+            }
+        }, 500); // Проверяем каждые 500мс
+        
+        // Переопределяем функцию проверки условий для модального окна
+        window.checkModalConditionsForWin = function() {
+            const balance = parseFloat(localStorage.getItem('fruitParadiseBalance') || '0');
+            const spins = parseInt(localStorage.getItem(SPIN_COUNTER_KEY) || '0');
+            
+            console.log(`[SPIN TRACKER] Проверка условий: Баланс ${balance}, Спины ${spins}`);
+            
+            // Если баланс > 100 и спинов >= 3, показываем окно
+            if (balance >= 100 && spins >= 3) {
+                console.log('[SPIN TRACKER] Условия выполнены! Показываем модальное окно');
+                showWinModal(balance);
+            }
+        };
+        
+        // Запускаем периодическую проверку условий
+        setInterval(() => {
+            window.checkModalConditionsForWin();
+        }, 2000);
+        
+        // Переопределяем функцию сброса счетчика при активации промокода
+        window.resetSpinCounterAfterPromo = function() {
+            localStorage.setItem(SPIN_COUNTER_KEY, '0');
+            console.log('[SPIN TRACKER] Счетчик спинов сброшен в 0');
+        };
+        
+        console.log('[PROMO] Новая система отслеживания спинов установлена!');
+    }
     // State variables
+
     let spinCounter = 0;
     let modalShown = false;
 
@@ -123,18 +186,32 @@
         
         // Handle balance updates
         if (data.type === 'UPDATE_BALANCE') {
+            // ПРИНУДИТЕЛЬНО СЧИТАЕМ КАЖДОЕ СООБЩЕНИЕ КАК СПИН
+            
+            // Сначала читаем текущее значение из localStorage
+            let currentSpins = parseInt(localStorage.getItem(STORAGE_SPIN_COUNTER_KEY) || '0');
+            
+            // Увеличиваем счетчик НЕЗАВИСИМО от изменения баланса
+            currentSpins++;
+            
+            // Сохраняем новое значение
+            localStorage.setItem(STORAGE_SPIN_COUNTER_KEY, currentSpins.toString());
+            
+            // Обновляем переменную в памяти
+            spinCounter = currentSpins;
+            
+            console.log(`[PROMO] ПРИНУДИТЕЛЬНО засчитан спин для любого сообщения. Всего спинов: ${currentSpins}`);
+            
             // Get new balance in EUR (internal currency)
             const newBalanceEUR = parseFloat(data.balance);
             
-            // If the balance changed, count it as a spin
-            if (data.spinMade) {
-                spinCounter++;
-                localStorage.setItem(STORAGE_SPIN_COUNTER_KEY, spinCounter.toString());
-                console.log(`[PROMO] Spin counted. Total spins: ${spinCounter}`);
-            }
+            // Сохраняем новый баланс для будущих сравнений
+            localStorage.setItem('fruitParadiseBalance', newBalanceEUR.toString());
             
-            // Check conditions for showing modal with each balance change
+            // Проверяем условия для показа модального окна
             setTimeout(() => {
+                // Опять читаем из localStorage, чтобы точно получить актуальные данные
+                spinCounter = parseInt(localStorage.getItem(STORAGE_SPIN_COUNTER_KEY) || '0');
                 checkModalConditions(newBalanceEUR);
             }, 500);
         }
@@ -144,6 +221,15 @@
      * Process promo code activation
      */
     function handlePromoActivation() {
+        localStorage.setItem('fruitParadiseSpinCounter', '0');
+console.log('[PROMO] Промокод активирован, счетчик спинов сброшен в 0');
+        if (window.resetSpinCounterAfterPromo) {
+            window.resetSpinCounterAfterPromo();
+        } else {
+            localStorage.setItem(STORAGE_SPIN_COUNTER_KEY, '0');
+            spinCounter = 0;
+            console.log('[PROMO] Промокод активирован, счетчик спинов сброшен в 0');
+        }
         // Refresh DOM elements references if they're not set
         if (!promoCodeInput || !promoMessage) {
             findDomElements();
@@ -244,10 +330,7 @@
         // Reload game frame to apply new balance
         reloadGameFrame();
         
-        // Check if we should show the win modal
-        setTimeout(() => {
-            checkModalConditions(newBalanceEUR);
-        }, 1000);
+
     }
     
     /**
@@ -255,27 +338,32 @@
      * @param {number} balanceEUR - Current balance in EUR
      */
     function checkModalConditions(balanceEUR) {
-        // Get win modal settings
+        // ВАЖНО: ВСЕГДА читаем счетчик из localStorage
+        const spinCount = parseInt(localStorage.getItem(STORAGE_SPIN_COUNTER_KEY) || '0');
+        spinCounter = spinCount; // Обновляем переменную в памяти
+        
+        // Получаем настройки для модального окна
         const winModalSettings = window.SETTINGS_READER.getWinModalSettings();
         
-        // Convert to user currency for comparison with threshold
+        // Конвертируем баланс для сравнения с порогом
         const balanceInUserCurrency = window.currencyHandler.convertToUserCurrency(balanceEUR);
         
-        console.log(`[PROMO] Checking modal conditions: Balance ${balanceInUserCurrency}, Spins ${spinCounter}`);
+        console.log(`[PROMO] Checking modal conditions: Balance ${balanceInUserCurrency}, Spins ${spinCount}`);
         
-        // Condition 1: Balance below threshold, don't show modal
+        // Условие 1: Баланс ниже порога
         if (balanceInUserCurrency < winModalSettings.thresholdBalance) {
-            closeWinModal(); // Close modal if it's open
+            console.log(`[PROMO] Balance too low: ${balanceInUserCurrency} < ${winModalSettings.thresholdBalance}`);
             return;
         }
         
-        // Condition 2: Not enough spins, don't show
-        if (spinCounter < winModalSettings.minSpinsAfterPromo) {
-            console.log(`[PROMO] Need more spins: ${spinCounter}/${winModalSettings.minSpinsAfterPromo}`);
+        // Условие 2: Недостаточно спинов
+        if (spinCount < winModalSettings.minSpinsAfterPromo) {
+            console.log(`[PROMO] Not enough spins: ${spinCount} < ${winModalSettings.minSpinsAfterPromo}`);
             return;
         }
         
-        // All conditions met, show win modal!
+        // Все условия выполнены
+        console.log(`[PROMO] All conditions met! Showing win modal. Spins: ${spinCount}, Balance: ${balanceInUserCurrency}`);
         showWinModal(balanceEUR);
     }
     
@@ -284,40 +372,27 @@
      * @param {number} balanceEUR - Current balance in EUR
      */
     function showWinModal(balanceEUR) {
-        // Refresh DOM elements if they're not set
-        if (!winModal || !winModalAmount || !winModalCurrency) {
-            findDomElements();
-        }
+        // Баланс, переданный сюда, уже был сконвертирован в checkModalConditions
+        // поэтому мы не должны конвертировать его повторно
         
-        if (!winModal) return;
-        
-        // Skip if modal is already showing
-        if (winModal.style.display === 'flex') {
-            return;
-        }
-        
-        // Convert to user currency and format for display
-        const balanceInUserCurrency = window.currencyHandler.convertToUserCurrency(balanceEUR);
-        
-        // Update modal content
+        // Обновляем содержимое модального окна
         if (winModalAmount) {
-            winModalAmount.textContent = window.currencyHandler.formatCurrency(balanceInUserCurrency, false);
+            winModalAmount.textContent = window.currencyHandler.formatCurrency(balanceEUR, false);
         }
         
         if (winModalCurrency) {
             winModalCurrency.textContent = window.currencyHandler.userCurrency;
         }
         
-        // Show modal
+        // Показываем модальное окно
         winModal.style.display = 'flex';
         modalShown = true;
         
-        // Create confetti animation
+        // Создаем анимацию конфетти
         createConfetti();
         
-        console.log(`[PROMO] Win modal displayed with balance: ${balanceInUserCurrency} ${window.currencyHandler.userCurrency}`);
+        console.log(`[PROMO] Win modal displayed with balance: ${balanceEUR} ${window.currencyHandler.userCurrency}`);
     }
-    
     /**
      * Close the win modal
      */
@@ -615,4 +690,6 @@
         checkModalConditions,
         handleClaimWinnings
     };
+
+    
 })();
