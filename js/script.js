@@ -263,6 +263,7 @@ class LocalizationManager {
         
         // Применяем локализацию к странице
         this.applyLocalization();
+        localStorage.setItem('selectedCountry', countryCode);
         if (window.currencyHandler) {
             // Устанавливаем правильную валюту на основе выбранной страны
             const countrySettings = this.config.countries[countryCode];
