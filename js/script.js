@@ -227,55 +227,117 @@ class LocalizationManager {
     }
 
     // Определение местоположения пользователя с помощью API
-   async detectUserLocation() {
-    return new Promise((resolve) => {
+  // Определение местоположения пользователя с несколькими резервными API
+async detectUserLocation() {
+    console.log("Запуск определения местоположения пользователя...");
+    let countryCode = null;
+    
+    // Создаем функцию для логирования
+    const logAttempt = (apiName, result) => {
+        console.log(`API ${apiName}: ${result ? 'успешно определена страна ' + result : 'не удалось определить страну'}`);
+    };
+
+    // 1. Пробуем GeoJS (без CORS-ограничений)
+    try {
+        const response = await fetch('https://get.geojs.io/v1/ip/country.json');
+        const data = await response.json();
+        countryCode = data.country;
+        logAttempt('GeoJS', countryCode);
+        
+        if (countryCode && this.config.countries[countryCode]) {
+            return countryCode;
+        }
+    } catch (error) {
+        console.warn("GeoJS API не сработал:", error);
+    }
+
+    // 2. Пробуем ipapi.co с JSONP (обход CORS)
+    countryCode = await new Promise((resolve) => {
         try {
-            // Создаем функцию для обработки JSONP-ответа
-            window.ipCallbackFunction = (data) => {
-                const countryCode = data.country_code;
-                console.log("Определена страна (JSONP):", countryCode);
-                
-                // Проверяем, поддерживается ли страна
-                if (this.config.countries[countryCode]) {
-                    resolve(countryCode);
-                } else {
-                    console.log("Страна не поддерживается, используем значение по умолчанию");
-                    resolve(this.config.default.country);
-                }
-                
-                // Очищаем глобальную функцию
-                delete window.ipCallbackFunction;
+            // Создаем уникальное имя для колбэка
+            const callbackName = 'ipCallback_' + Math.floor(Math.random() * 1000000);
+            
+            // Создаем функцию обратного вызова
+            window[callbackName] = (data) => {
+                const code = data.country_code;
+                logAttempt('ipapi.co JSONP', code);
+                delete window[callbackName]; // Очищаем глобальную функцию
+                resolve(code);
             };
             
-            // Устанавливаем таймаут для резервного решения
+            // Устанавливаем таймаут
             const timeoutId = setTimeout(() => {
-                console.error("Таймаут при определении местоположения");
-                delete window.ipCallbackFunction;
-                resolve(this.config.default.country);
-            }, 5000);
+                delete window[callbackName];
+                resolve(null);
+            }, 3000);
             
-            // Создаем и добавляем скрипт для JSONP-запроса
+            // Создаем и загружаем скрипт
             const script = document.createElement('script');
-            script.src = 'https://ipapi.co/jsonp/?callback=ipCallbackFunction';
-            
-            // Обработчик успешной загрузки
+            script.src = `https://ipapi.co/jsonp/?callback=${callbackName}`;
             script.onload = () => clearTimeout(timeoutId);
-            
-            // Обработчик ошибки
             script.onerror = () => {
-                console.error("Ошибка загрузки JSONP-скрипта");
                 clearTimeout(timeoutId);
-                resolve(this.config.default.country);
+                resolve(null);
             };
-            
-            // Добавляем скрипт на страницу
             document.body.appendChild(script);
-            
-        } catch (error) {
-            console.error("Произошла ошибка:", error);
-            resolve(this.config.default.country);
+        } catch {
+            resolve(null);
         }
     });
+    
+    if (countryCode && this.config.countries[countryCode]) {
+        return countryCode;
+    }
+
+    // 3. Пробуем freegeoip.app (HTTPS, обходит CORS)
+    try {
+        const response = await fetch('https://api.freegeoip.app/json/?apikey=YOUR_API_KEY');
+        const data = await response.json();
+        countryCode = data.country_code;
+        logAttempt('freegeoip.app', countryCode);
+        
+        if (countryCode && this.config.countries[countryCode]) {
+            return countryCode;
+        }
+    } catch (error) {
+        console.warn("freegeoip.app API не сработал:", error);
+    }
+    
+    // 4. Пробуем geoip.nekudo.com (без API ключа)
+    try {
+        const response = await fetch('https://geoip.nekudo.com/api/');
+        const data = await response.json();
+        countryCode = data.country.code;
+        logAttempt('nekudo', countryCode);
+        
+        if (countryCode && this.config.countries[countryCode]) {
+            return countryCode;
+        }
+    } catch (error) {
+        console.warn("nekudo API не сработал:", error);
+    }
+    
+    // 5. Пробуем Cloudflare Trace (парсинг текстового ответа)
+    try {
+        const response = await fetch('https://cloudflare.com/cdn-cgi/trace');
+        const text = await response.text();
+        // Парсим строку loc=US из текстового ответа
+        const locMatch = text.match(/loc=([A-Z]{2})/);
+        if (locMatch && locMatch[1]) {
+            countryCode = locMatch[1];
+            logAttempt('Cloudflare Trace', countryCode);
+            
+            if (this.config.countries[countryCode]) {
+                return countryCode;
+            }
+        }
+    } catch (error) {
+        console.warn("Cloudflare Trace не сработал:", error);
+    }
+    
+    // Если все API не сработали или не вернули поддерживаемую страну, используем значение по умолчанию
+    console.log("Не удалось определить местоположение ни через один API, используем страну по умолчанию:", this.config.default.country);
+    return this.config.default.country;
 }
     // Установка локали на основе кода страны
     setLocale(countryCode) {
