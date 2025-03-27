@@ -1,5 +1,5 @@
 // Конфигурация локализации и валют
-
+localStorage.clear();
 
 const CONFIG = {
     // Поддерживаемые страны и соответствующие языки/валюты
@@ -10,7 +10,8 @@ const CONFIG = {
         'DE': { lang: 'de', currency: '€', currency_name: 'EUR' },
         'FR': { lang: 'fr', currency: '€', currency_name: 'EUR' },
         'GB': { lang: 'en', currency: '£', currency_name: 'GBP' },
-        'AE': { lang: 'ar', currency: 'AED', currency_name: 'AED' }
+        'AE': { lang: 'ar', currency: 'AED', currency_name: 'AED' },
+        'CH': { lang: 'en', currency: 'CHF', currency_name: 'CHF' }
     },
 
     
@@ -205,7 +206,8 @@ const CONFIG = {
         'A$': { symbol: 'A$', position: 'prefix' },
         '€': { symbol: '€', position: 'suffix' },
         '£': { symbol: '£', position: 'prefix' },
-        'AED': { symbol: 'AED', position: 'suffix' }
+        'AED': { symbol: 'AED', position: 'suffix' },
+        'CHF': { symbol: 'CHF', position: 'suffix' }
     },
     // Значения по умолчанию
     default: {
