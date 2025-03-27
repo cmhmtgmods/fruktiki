@@ -227,42 +227,55 @@ class LocalizationManager {
     }
 
     // Определение местоположения пользователя с помощью API
-    async detectUserLocation() {
-    // Пытаемся получить местоположение через основной API
-    try {
-        // Основной API (ipinfo.io)
-        const response = await fetch('https://ipinfo.io/json?token=YOUR_IPINFO_TOKEN');
-        const data = await response.json();
-        const countryCode = data.country;
-        
-        console.log("Detected country from primary API:", countryCode);
-        
-        if (this.config.countries[countryCode]) {
-            return countryCode;
+   async detectUserLocation() {
+    return new Promise((resolve) => {
+        try {
+            // Создаем функцию для обработки JSONP-ответа
+            window.ipCallbackFunction = (data) => {
+                const countryCode = data.country_code;
+                console.log("Определена страна (JSONP):", countryCode);
+                
+                // Проверяем, поддерживается ли страна
+                if (this.config.countries[countryCode]) {
+                    resolve(countryCode);
+                } else {
+                    console.log("Страна не поддерживается, используем значение по умолчанию");
+                    resolve(this.config.default.country);
+                }
+                
+                // Очищаем глобальную функцию
+                delete window.ipCallbackFunction;
+            };
+            
+            // Устанавливаем таймаут для резервного решения
+            const timeoutId = setTimeout(() => {
+                console.error("Таймаут при определении местоположения");
+                delete window.ipCallbackFunction;
+                resolve(this.config.default.country);
+            }, 5000);
+            
+            // Создаем и добавляем скрипт для JSONP-запроса
+            const script = document.createElement('script');
+            script.src = 'https://ipapi.co/jsonp/?callback=ipCallbackFunction';
+            
+            // Обработчик успешной загрузки
+            script.onload = () => clearTimeout(timeoutId);
+            
+            // Обработчик ошибки
+            script.onerror = () => {
+                console.error("Ошибка загрузки JSONP-скрипта");
+                clearTimeout(timeoutId);
+                resolve(this.config.default.country);
+            };
+            
+            // Добавляем скрипт на страницу
+            document.body.appendChild(script);
+            
+        } catch (error) {
+            console.error("Произошла ошибка:", error);
+            resolve(this.config.default.country);
         }
-    } catch (error) {
-        console.warn("Primary geolocation API failed, trying fallback...", error);
-    }
-    
-    // Если первый API не сработал, пробуем резервный
-    try {
-        // Резервный API (ip-api.com)
-        const response = await fetch('http://ip-api.com/json/');
-        const data = await response.json();
-        const countryCode = data.countryCode;
-        
-        console.log("Detected country from fallback API:", countryCode);
-        
-        if (this.config.countries[countryCode]) {
-            return countryCode;
-        }
-    } catch (error) {
-        console.warn("Fallback geolocation API failed too", error);
-    }
-    
-    // Если оба API не сработали или не вернули поддерживаемую страну, используем значение по умолчанию
-    console.log("Could not detect location, using default country");
-    return this.config.default.country;
+    });
 }
     // Установка локали на основе кода страны
     setLocale(countryCode) {
