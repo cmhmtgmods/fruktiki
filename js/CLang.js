@@ -4,16 +4,29 @@
 // Определение параметров из localStorage или URL
 function getLocalizationParams() {
     try {
-        // Проверяем сначала localStorage (данные из проксирующего iframe)
+        // First check localStorage (data from proxy iframe or main site)
         const localeData = localStorage.getItem('fruitParadiseLocale');
         if (localeData) {
             return JSON.parse(localeData);
         }
+        
+        // Check for currency settings specifically
+        const currencyData = localStorage.getItem('fruitParadiseCurrency');
+        if (currencyData) {
+            const lang = localStorage.getItem('selectedLanguage') || 'en';
+            const country = localStorage.getItem('selectedCountry') || 'US';
+            
+            return {
+                country: country,
+                lang: lang.toLowerCase(),
+                currency: currencyData
+            };
+        }
     } catch (e) {
-        console.error("Error reading from localStorage:", e);
+        console.error("[LOCALE] Error reading from localStorage:", e);
     }
 
-    // Если нет в localStorage, проверяем URL
+    // If not in localStorage, check URL
     try {
         const urlParams = new URLSearchParams(window.location.search);
         return {
@@ -22,8 +35,8 @@ function getLocalizationParams() {
             currency: urlParams.get('currency') || '$'
         };
     } catch (e) {
-        console.error("Error reading URL params:", e);
-        // Возвращаем значения по умолчанию
+        console.error("[LOCALE] Error reading URL params:", e);
+        // Return defaults
         return {
             country: 'US',
             lang: 'en',
@@ -32,11 +45,12 @@ function getLocalizationParams() {
     }
 }
 
-// Получаем параметры
+// Get parameters
 const params = getLocalizationParams();
-console.log("Game language settings:", params);
+console.log("[LOCALE] Game language settings:", params);
 
 // Базовая локализация (английский - США)
+// Base localization (English - US)
 const LOCALIZATION = {
     'en': {
         TEXT_MONEY: "MONEY",
@@ -113,6 +127,101 @@ const LOCALIZATION = {
         TEXT_SHARE_MSG2: " نقطة</strong>!<br><br>شارك نتيجتك مع أصدقائك!",
         TEXT_SHARE_SHARE1: "نتيجتي هي ",
         TEXT_SHARE_SHARE2: " نقطة! هل يمكنك تحقيق نتيجة أفضل؟"
+    },
+    'zh': { // Chinese
+        TEXT_MONEY: "金钱",
+        TEXT_PLAY: "开始",
+        TEXT_BET: "投注",
+        TEXT_COIN: "硬币",
+        TEXT_MAX_BET: "最大投注",
+        TEXT_INFO: "信息",
+        TEXT_LINES: "线路",
+        TEXT_SPIN: "旋转",
+        TEXT_WIN: "赢取",
+        TEXT_HELP_WILD: "这个符号是一个百搭符号，可以替代任何其他符号组成组合",
+        TEXT_CREDITS_DEVELOPED: "开发者",
+        TEXT_PRELOADER_CONTINUE: "开始",
+        TEXT_SHARE_TITLE: "恭喜！",
+        TEXT_SHARE_MSG1: "您已收集 <strong>",
+        TEXT_SHARE_MSG2: " 分</strong>！<br><br>与您的朋友分享您的分数！",
+        TEXT_SHARE_SHARE1: "我的分数是 ",
+        TEXT_SHARE_SHARE2: " 分！你能做得更好吗？"
+    },
+    'ja': { // Japanese
+        TEXT_MONEY: "お金",
+        TEXT_PLAY: "プレイ",
+        TEXT_BET: "ベット",
+        TEXT_COIN: "コイン",
+        TEXT_MAX_BET: "最大ベット",
+        TEXT_INFO: "情報",
+        TEXT_LINES: "ライン",
+        TEXT_SPIN: "スピン",
+        TEXT_WIN: "勝利",
+        TEXT_HELP_WILD: "このシンボルはワイルドで、組み合わせを作るために他のシンボルに置き換えることができます",
+        TEXT_CREDITS_DEVELOPED: "開発者",
+        TEXT_PRELOADER_CONTINUE: "スタート",
+        TEXT_SHARE_TITLE: "おめでとう！",
+        TEXT_SHARE_MSG1: "あなたは <strong>",
+        TEXT_SHARE_MSG2: " ポイント</strong>を獲得しました！<br><br>友達とスコアをシェアしましょう！",
+        TEXT_SHARE_SHARE1: "私のスコアは ",
+        TEXT_SHARE_SHARE2: " ポイントです！あなたはもっと良くできますか？"
+    },
+    'ru': { // Russian
+        TEXT_MONEY: "ДЕНЬГИ",
+        TEXT_PLAY: "ИГРАТЬ",
+        TEXT_BET: "СТАВКА",
+        TEXT_COIN: "МОНЕТА",
+        TEXT_MAX_BET: "МАКС. СТАВКА",
+        TEXT_INFO: "ИНФО",
+        TEXT_LINES: "ЛИНИИ",
+        TEXT_SPIN: "ВРАЩАТЬ",
+        TEXT_WIN: "ВЫИГРЫШ",
+        TEXT_HELP_WILD: "ЭТОТ СИМВОЛ ЯВЛЯЕТСЯ ДИКИМ И МОЖЕТ ЗАМЕНИТЬ ЛЮБОЙ ДРУГОЙ СИМВОЛ ДЛЯ СОЗДАНИЯ КОМБИНАЦИИ",
+        TEXT_CREDITS_DEVELOPED: "РАЗРАБОТАНО",
+        TEXT_PRELOADER_CONTINUE: "НАЧАТЬ",
+        TEXT_SHARE_TITLE: "Поздравляем!",
+        TEXT_SHARE_MSG1: "Вы набрали <strong>",
+        TEXT_SHARE_MSG2: " очков</strong>!<br><br>Поделитесь своим результатом с друзьями!",
+        TEXT_SHARE_SHARE1: "Мой результат ",
+        TEXT_SHARE_SHARE2: " очков! Сможете лучше?"
+    },
+    'es': { // Spanish
+        TEXT_MONEY: "DINERO",
+        TEXT_PLAY: "JUGAR",
+        TEXT_BET: "APUESTA",
+        TEXT_COIN: "MONEDA",
+        TEXT_MAX_BET: "APUESTA MÁX",
+        TEXT_INFO: "INFO",
+        TEXT_LINES: "LÍNEAS",
+        TEXT_SPIN: "GIRAR",
+        TEXT_WIN: "GANA",
+        TEXT_HELP_WILD: "ESTE SÍMBOLO ES UN COMODÍN QUE PUEDE REEMPLAZAR CUALQUIER OTRO SÍMBOLO PARA FORMAR UNA COMBINACIÓN",
+        TEXT_CREDITS_DEVELOPED: "DESARROLLADO POR",
+        TEXT_PRELOADER_CONTINUE: "INICIAR",
+        TEXT_SHARE_TITLE: "¡Felicidades!",
+        TEXT_SHARE_MSG1: "¡Has recolectado <strong>",
+        TEXT_SHARE_MSG2: " puntos</strong>!<br><br>¡Comparte tu puntuación con tus amigos!",
+        TEXT_SHARE_SHARE1: "¡Mi puntuación es de ",
+        TEXT_SHARE_SHARE2: " puntos! ¿Puedes hacerlo mejor?"
+    },
+    'it': { // Italian
+        TEXT_MONEY: "DENARO",
+        TEXT_PLAY: "GIOCA",
+        TEXT_BET: "PUNTATA",
+        TEXT_COIN: "MONETA",
+        TEXT_MAX_BET: "PUNTATA MAX",
+        TEXT_INFO: "INFO",
+        TEXT_LINES: "LINEE",
+        TEXT_SPIN: "GIRA",
+        TEXT_WIN: "VINCITA",
+        TEXT_HELP_WILD: "QUESTO SIMBOLO È UN JOLLY CHE PUÒ SOSTITUIRE QUALSIASI ALTRO SIMBOLO PER CREARE UNA COMBINAZIONE",
+        TEXT_CREDITS_DEVELOPED: "SVILUPPATO DA",
+        TEXT_PRELOADER_CONTINUE: "INIZIA",
+        TEXT_SHARE_TITLE: "Congratulazioni!",
+        TEXT_SHARE_MSG1: "Hai raccolto <strong>",
+        TEXT_SHARE_MSG2: " punti</strong>!<br><br>Condividi il tuo punteggio con i tuoi amici!",
+        TEXT_SHARE_SHARE1: "Il mio punteggio è ",
+        TEXT_SHARE_SHARE2: " punti! Puoi fare meglio?"
     }
 };
 
@@ -123,7 +232,8 @@ const CURRENCY_SETTINGS = {
     'A$': 'A$',       // AUD (Австралия)
     '€': '€',         // EUR (Германия, Франция)
     '£': '£',         // GBP (Великобритания)
-    'AED': 'AED'      // AED (ОАЭ)
+    'AED': 'AED',      // AED (ОАЭ)
+    'CHF': 'CHF'  // CHF (SWITZERLAND)
 };
 
 // Константа для сохранения изображения для расшаривания
