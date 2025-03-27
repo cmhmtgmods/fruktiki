@@ -272,8 +272,9 @@
                         'C$': 'CAD',
                         'A$': 'AUD',
                         '€': 'EUR',
-                        '£': 'GBP',
-                        'AED': 'AED'
+                        '£': 'GBP',          
+                        'AED': 'AED',
+                        'CHF': 'CHF'
                     };
                     
                     // Get the appropriate currency code
