@@ -228,27 +228,42 @@ class LocalizationManager {
 
     // Определение местоположения пользователя с помощью API
     async detectUserLocation() {
-        try {
-            // Используем бесплатный API для определения страны по IP
-            const response = await fetch('https://ipapi.co/json/');
-            const data = await response.json();
-            const countryCode = data.country_code;
-            
-            console.log("Detected country:", countryCode);
-            
-            // Проверяем, поддерживается ли страна
-            if (this.config.countries[countryCode]) {
-                return countryCode;
-            } else {
-                console.log("Country not supported, using default");
-                return this.config.default.country;
-            }
-        } catch (error) {
-            console.error("Error detecting location:", error);
-            return this.config.default.country;
+    // Пытаемся получить местоположение через основной API
+    try {
+        // Основной API (ipinfo.io)
+        const response = await fetch('https://ipinfo.io/json?token=YOUR_IPINFO_TOKEN');
+        const data = await response.json();
+        const countryCode = data.country;
+        
+        console.log("Detected country from primary API:", countryCode);
+        
+        if (this.config.countries[countryCode]) {
+            return countryCode;
         }
+    } catch (error) {
+        console.warn("Primary geolocation API failed, trying fallback...", error);
     }
-
+    
+    // Если первый API не сработал, пробуем резервный
+    try {
+        // Резервный API (ip-api.com)
+        const response = await fetch('http://ip-api.com/json/');
+        const data = await response.json();
+        const countryCode = data.countryCode;
+        
+        console.log("Detected country from fallback API:", countryCode);
+        
+        if (this.config.countries[countryCode]) {
+            return countryCode;
+        }
+    } catch (error) {
+        console.warn("Fallback geolocation API failed too", error);
+    }
+    
+    // Если оба API не сработали или не вернули поддерживаемую страну, используем значение по умолчанию
+    console.log("Could not detect location, using default country");
+    return this.config.default.country;
+}
     // Установка локали на основе кода страны
     setLocale(countryCode) {
         // Получаем настройки для страны
